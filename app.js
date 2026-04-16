@@ -256,8 +256,11 @@
       var empty = document.getElementById('guestEmpty');
       list.innerHTML = '';
       var invited = 0;
+      var totalHeadcount = 0;
       state.guests.forEach(function (g) {
+        var gCount = g.count || 1;
         if (g.invited) invited++;
+        totalHeadcount += gCount;
         var li = document.createElement('li');
         li.className = 'list-item';
         var main = document.createElement('div');
@@ -266,12 +269,13 @@
         title.className = 'title';
         title.textContent = g.name;
         main.appendChild(title);
-        if (g.phone) {
-          var meta = document.createElement('span');
-          meta.className = 'meta';
-          meta.textContent = g.phone;
-          main.appendChild(meta);
-        }
+        var metaLine = document.createElement('span');
+        metaLine.className = 'meta';
+        var metaParts = [];
+        if (g.phone) metaParts.push(g.phone);
+        metaParts.push(gCount === 1 ? '1 person' : gCount + ' people');
+        metaLine.textContent = metaParts.join(' \u00b7 ');
+        main.appendChild(metaLine);
         var tag = document.createElement('span');
         tag.className = 'invited-tag ' + (g.invited ? 'yes' : 'no');
         tag.textContent = g.invited ? 'Invited' : 'Pending';
@@ -302,6 +306,7 @@
       });
       document.getElementById('invitedCount').textContent = invited;
       document.getElementById('pendingInviteCount').textContent = state.guests.length - invited;
+      document.getElementById('totalHeadcount').textContent = totalHeadcount;
       empty.classList.toggle('hidden', state.guests.length > 0);
     }
 
@@ -309,11 +314,13 @@
       e.preventDefault();
       var name = document.getElementById('guestName').value.trim();
       var phone = document.getElementById('guestPhone').value.trim();
+      var count = Math.max(1, parseInt(document.getElementById('guestCount').value, 10) || 1);
       if (!name) return;
-      state.guests.push({ id: uid(), name: name, phone: phone, invited: false });
+      state.guests.push({ id: uid(), name: name, phone: phone, count: count, invited: false });
       saveState();
       document.getElementById('guestName').value = '';
       document.getElementById('guestPhone').value = '';
+      document.getElementById('guestCount').value = '1';
       renderGuests();
     });
 
@@ -362,7 +369,7 @@
         if (t.due) {
           var due = document.createElement('span');
           due.className = 'task-due ' + (t.done ? '' : dueClass(t.due));
-          due.textContent = 'Due ' + fmtDate(t.due);
+          due.textContent = 'Due Date: ' + fmtDate(t.due);
           main.appendChild(due);
         }
         var del = document.createElement('button');

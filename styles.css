@@ -159,6 +159,7 @@ body {
 }
 .expense-form input[type="number"] { flex: 0 0 130px; }
 .expense-form select { flex: 0 0 170px; }
+.guest-count-input { flex: 0 0 80px; }
 
 input:focus, select:focus, textarea:focus {
   outline: none;

@@ -139,11 +139,13 @@
             <div class="stats">
               <span class="chip chip-ok"><span id="invitedCount">0</span> invited</span>
               <span class="chip chip-warn"><span id="pendingInviteCount">0</span> pending</span>
+              <span class="chip chip-total"><span id="totalHeadcount">0</span> total guests</span>
             </div>
           </div>
           <form id="guestForm" class="inline-form">
             <input type="text" id="guestName" placeholder="Guest name" required />
             <input type="text" id="guestPhone" placeholder="Phone (optional)" />
+            <input type="number" id="guestCount" placeholder="Count" min="1" value="1" class="guest-count-input" title="Total people coming (guest + spouse + kids)" />
             <button type="submit" class="btn-primary">Add</button>
           </form>
           <ul class="list" id="guestList"></ul>
@@ -184,6 +186,8 @@
             <option value="Food &amp; Catering">Food &amp; Catering</option>
             <option value="Decoration">Decoration</option>
             <option value="Priest Dakshina">Priest Dakshina</option>
+            <option value="Photographer">Photographer</option>
+            <option value="Return Gifts">Return Gifts</option>
             <option value="Gifts">Gifts</option>
             <option value="Travel">Travel</option>
             <option value="Other">Other</option>
