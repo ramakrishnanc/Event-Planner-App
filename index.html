@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gruhapravesham Planner</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="title-block">
+        <span class="om">&#x950;</span>
+        <h1>Gruhapravesham Planner</h1>
+        <p class="tagline">Plan the housewarming with calm and clarity</p>
+      </div>
+      <div class="countdown-card">
+        <div class="countdown-number" id="daysToGo">--</div>
+        <div class="countdown-label">days to go</div>
+        <div class="countdown-date" id="eventDateLabel">Set the muhurtham below</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Muhurtham Section -->
+    <section class="card" id="muhurthamSection">
+      <div class="card-head">
+        <h2>Muhurtham Details</h2>
+        <button class="btn-ghost" id="editMuhurthamBtn">Edit</button>
+      </div>
+      <div class="muhurtham-view" id="muhurthamView">
+        <div class="muhurtham-grid">
+          <div><span class="label">Date</span><span class="value" id="mDate">&mdash;</span></div>
+          <div><span class="label">Time</span><span class="value" id="mTime">&mdash;</span></div>
+          <div><span class="label">Tithi / Nakshatra</span><span class="value" id="mNakshatra">&mdash;</span></div>
+          <div><span class="label">Venue</span><span class="value" id="mVenue">&mdash;</span></div>
+          <div class="full"><span class="label">Priest / Contact</span><span class="value" id="mPriest">&mdash;</span></div>
+          <div class="full"><span class="label">Notes</span><span class="value" id="mNotes">&mdash;</span></div>
+        </div>
+      </div>
+      <form class="muhurtham-form hidden" id="muhurthamForm">
+        <div class="form-grid">
+          <label>Date<input type="date" id="fDate" required /></label>
+          <label>Time<input type="time" id="fTime" required /></label>
+          <label>Tithi / Nakshatra<input type="text" id="fNakshatra" placeholder="e.g. Rohini, Shukla Paksha" /></label>
+          <label>Venue<input type="text" id="fVenue" placeholder="House address" /></label>
+          <label class="full">Priest / Contact<input type="text" id="fPriest" placeholder="Name &amp; phone" /></label>
+          <label class="full">Notes<textarea id="fNotes" rows="2" placeholder="Items to bring, pooja samagri, etc."></textarea></label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-ghost" id="cancelMuhurthamBtn">Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </section>
+
+    <div class="grid-2">
+      <!-- Guests Section -->
+      <section class="card" id="guestsSection">
+        <div class="card-head">
+          <h2>Guests</h2>
+          <div class="stats">
+            <span class="chip chip-ok"><span id="invitedCount">0</span> invited</span>
+            <span class="chip chip-warn"><span id="pendingInviteCount">0</span> pending</span>
+          </div>
+        </div>
+        <form id="guestForm" class="inline-form">
+          <input type="text" id="guestName" placeholder="Guest name" required />
+          <input type="text" id="guestPhone" placeholder="Phone (optional)" />
+          <button type="submit" class="btn-primary">Add</button>
+        </form>
+        <ul class="list" id="guestList"></ul>
+        <p class="empty hidden" id="guestEmpty">No guests yet. Add the first one above.</p>
+      </section>
+
+      <!-- Tasks Section -->
+      <section class="card" id="tasksSection">
+        <div class="card-head">
+          <h2>Pending Tasks</h2>
+          <div class="stats">
+            <span class="chip chip-ok"><span id="doneCount">0</span> done</span>
+            <span class="chip chip-warn"><span id="pendingTaskCount">0</span> pending</span>
+          </div>
+        </div>
+        <form id="taskForm" class="inline-form">
+          <input type="text" id="taskTitle" placeholder="Task description" required />
+          <input type="date" id="taskDue" />
+          <button type="submit" class="btn-primary">Add</button>
+        </form>
+        <ul class="list" id="taskList"></ul>
+        <p class="empty hidden" id="taskEmpty">No tasks yet. Add what needs doing.</p>
+      </section>
+    </div>
+
+    <!-- Expenses Section -->
+    <section class="card" id="expensesSection">
+      <div class="card-head">
+        <h2>Expenses</h2>
+        <div class="stats">
+          <span class="chip chip-total">Total: <span id="expenseTotal">0</span></span>
+        </div>
+      </div>
+      <form id="expenseForm" class="inline-form expense-form">
+        <input type="text" id="expDesc" placeholder="Description" required />
+        <select id="expCategory">
+          <option value="Pooja">Pooja</option>
+          <option value="Food &amp; Catering">Food &amp; Catering</option>
+          <option value="Decoration">Decoration</option>
+          <option value="Priest Dakshina">Priest Dakshina</option>
+          <option value="Gifts">Gifts</option>
+          <option value="Travel">Travel</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="number" id="expAmount" placeholder="Amount" min="0" step="0.01" required />
+        <input type="date" id="expDate" />
+        <button type="submit" class="btn-primary">Add</button>
+      </form>
+      <div class="expense-table-wrap">
+        <table class="expense-table" id="expenseTable">
+          <thead>
+            <tr><th>Date</th><th>Description</th><th>Category</th><th class="right">Amount</th><th></th></tr>
+          </thead>
+          <tbody id="expenseBody"></tbody>
+        </table>
+      </div>
+      <p class="empty hidden" id="expenseEmpty">No expenses logged yet.</p>
+      <div class="category-breakdown" id="categoryBreakdown"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Saved locally in your browser. Subham Bhavatu.</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
