@@ -6,132 +6,152 @@
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
-  // ── Auth ─────────────────────────────────────────────────
-  var AUTH_USERS_KEY = 'gp-users';
-  var AUTH_SESSION_KEY = 'gp-session';
-
-  function getUsers() {
-    try { return JSON.parse(localStorage.getItem(AUTH_USERS_KEY)) || []; }
-    catch (e) { return []; }
+  // ── API helper ───────────────────────────────────────────
+  function apiCall(method, path, body, token) {
+    var opts = {
+      method: method,
+      headers: { 'Content-Type': 'application/json' }
+    };
+    if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+    if (body !== undefined && body !== null) opts.body = JSON.stringify(body);
+    return fetch('/api/' + path, opts).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+        return data;
+      });
+    });
   }
 
+  function getToken() {
+    return localStorage.getItem('gp-jwt');
+  }
+
+  function isTokenExpired(token) {
+    try {
+      var payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch (e) {
+      return true;
+    }
+  }
+
+  // ── Auth ─────────────────────────────────────────────────
+  var GP_SESSION_KEY = 'gp-session';
+
   function getSession() {
-    try { return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY)); }
+    try { return JSON.parse(localStorage.getItem(GP_SESSION_KEY)); }
     catch (e) { return null; }
   }
 
-  function register(name, email, password) {
-    var users = getUsers();
-    if (users.find(function (u) { return u.email.toLowerCase() === email.toLowerCase(); })) {
-      return { error: 'An account with this email already exists.' };
-    }
-    var user = { id: uid(), name: name.trim(), email: email.toLowerCase() };
-    users.push(Object.assign({}, user, { password: password }));
-    localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
-    return { user: user };
+  function setAuthError(id, msg) {
+    var el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.remove('hidden');
   }
 
-  function loginUser(email, password) {
-    var users = getUsers();
-    var found = users.find(function (u) {
-      return u.email.toLowerCase() === email.toLowerCase() && u.password === password;
-    });
-    if (!found) return { error: 'Incorrect email or password.' };
-    return { user: { id: found.id, name: found.name, email: found.email } };
+  function clearAuthError(id) {
+    document.getElementById(id).classList.add('hidden');
   }
 
-  function showApp(session) {
-    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-    document.getElementById('authScreen').classList.add('hidden');
-    var shell = document.getElementById('appShell');
-    shell.classList.remove('hidden');
-    var firstName = session.name.split(' ')[0];
-    document.getElementById('userGreeting').textContent = 'Namaste, ' + firstName;
-    initApp(session.id);
-  }
-
-  function logout() {
-    localStorage.removeItem(AUTH_SESSION_KEY);
-    document.getElementById('appShell').classList.add('hidden');
-    document.getElementById('authScreen').classList.remove('hidden');
-    document.getElementById('loginForm').reset();
-    document.getElementById('loginError').classList.add('hidden');
+  function setSubmitState(form, loading) {
+    var btn = form.querySelector('.auth-submit');
+    btn.disabled = loading;
+    btn.textContent = loading
+      ? (form.id === 'loginForm' ? 'Entering…' : 'Creating account…')
+      : (form.id === 'loginForm' ? 'Enter \u2192' : 'Create Account \u2192');
   }
 
   // Auth tab switching
   var tabLogin = document.getElementById('tabLogin');
   var tabRegister = document.getElementById('tabRegister');
-  var loginForm = document.getElementById('loginForm');
-  var registerForm = document.getElementById('registerForm');
+  var loginFormEl = document.getElementById('loginForm');
+  var registerFormEl = document.getElementById('registerForm');
 
   tabLogin.addEventListener('click', function () {
     tabLogin.classList.add('auth-tab-active');
     tabRegister.classList.remove('auth-tab-active');
-    loginForm.classList.remove('hidden');
-    registerForm.classList.add('hidden');
-    document.getElementById('loginError').classList.add('hidden');
+    loginFormEl.classList.remove('hidden');
+    registerFormEl.classList.add('hidden');
+    clearAuthError('loginError');
   });
 
   tabRegister.addEventListener('click', function () {
     tabRegister.classList.add('auth-tab-active');
     tabLogin.classList.remove('auth-tab-active');
-    registerForm.classList.remove('hidden');
-    loginForm.classList.add('hidden');
-    document.getElementById('registerError').classList.add('hidden');
+    registerFormEl.classList.remove('hidden');
+    loginFormEl.classList.add('hidden');
+    clearAuthError('registerError');
   });
 
-  loginForm.addEventListener('submit', function (e) {
+  loginFormEl.addEventListener('submit', function (e) {
     e.preventDefault();
+    clearAuthError('loginError');
     var email = document.getElementById('loginEmail').value.trim();
     var password = document.getElementById('loginPassword').value;
-    var result = loginUser(email, password);
-    var errEl = document.getElementById('loginError');
-    if (result.error) {
-      errEl.textContent = result.error;
-      errEl.classList.remove('hidden');
-    } else {
-      errEl.classList.add('hidden');
-      showApp(result.user);
-    }
+    setSubmitState(loginFormEl, true);
+    apiCall('POST', 'login', { email: email, password: password })
+      .then(function (res) {
+        localStorage.setItem('gp-jwt', res.token);
+        localStorage.setItem(GP_SESSION_KEY, JSON.stringify(res.user));
+        showApp(res.user);
+      })
+      .catch(function (err) {
+        setAuthError('loginError', err.message);
+        setSubmitState(loginFormEl, false);
+      });
   });
 
-  registerForm.addEventListener('submit', function (e) {
+  registerFormEl.addEventListener('submit', function (e) {
     e.preventDefault();
+    clearAuthError('registerError');
     var name = document.getElementById('regName').value.trim();
     var email = document.getElementById('regEmail').value.trim();
     var password = document.getElementById('regPassword').value;
     var confirm = document.getElementById('regConfirm').value;
-    var errEl = document.getElementById('registerError');
 
     if (password !== confirm) {
-      errEl.textContent = 'Passwords do not match.';
-      errEl.classList.remove('hidden');
+      setAuthError('registerError', 'Passwords do not match.');
       return;
     }
 
-    var result = register(name, email, password);
-    if (result.error) {
-      errEl.textContent = result.error;
-      errEl.classList.remove('hidden');
-    } else {
-      errEl.classList.add('hidden');
-      showApp(result.user);
-    }
+    setSubmitState(registerFormEl, true);
+    apiCall('POST', 'register', { name: name, email: email, password: password })
+      .then(function (res) {
+        localStorage.setItem('gp-jwt', res.token);
+        localStorage.setItem(GP_SESSION_KEY, JSON.stringify(res.user));
+        showApp(res.user);
+      })
+      .catch(function (err) {
+        setAuthError('registerError', err.message);
+        setSubmitState(registerFormEl, false);
+      });
   });
 
-  document.getElementById('logoutBtn').addEventListener('click', logout);
+  document.getElementById('logoutBtn').addEventListener('click', function () {
+    localStorage.removeItem('gp-jwt');
+    localStorage.removeItem(GP_SESSION_KEY);
+    document.getElementById('appShell').classList.add('hidden');
+    document.getElementById('authScreen').classList.remove('hidden');
+    loginFormEl.reset();
+    clearAuthError('loginError');
+  });
 
-  // Restore existing session on load
+  function showApp(session) {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appShell').classList.remove('hidden');
+    document.getElementById('userGreeting').textContent = 'Namaste, ' + session.name.split(' ')[0];
+    initApp();
+  }
+
+  // Restore session on page load
   var existingSession = getSession();
-  if (existingSession) {
+  var existingToken = getToken();
+  if (existingSession && existingToken && !isTokenExpired(existingToken)) {
     showApp(existingSession);
   }
 
   // ── Main App ─────────────────────────────────────────────
-  // Called once after successful auth; userId scopes the data.
-  function initApp(userId) {
-    var STORAGE_KEY = 'gruhapravesham-planner-v1-' + userId;
-
+  function initApp() {
     var defaultState = {
       muhurtham: { date: '', time: '', nakshatra: '', venue: '', priest: '', notes: '' },
       guests: [],
@@ -139,20 +159,33 @@
       expenses: []
     };
 
-    var state = loadState();
+    var state = JSON.parse(JSON.stringify(defaultState));
+    var saveTimer;
 
-    function loadState() {
-      try {
-        var raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return JSON.parse(JSON.stringify(defaultState));
-        return Object.assign(JSON.parse(JSON.stringify(defaultState)), JSON.parse(raw));
-      } catch (e) {
-        return JSON.parse(JSON.stringify(defaultState));
-      }
+    // Load from API then render everything
+    apiCall('GET', 'data', null, getToken())
+      .then(function (data) {
+        if (data) state = Object.assign(JSON.parse(JSON.stringify(defaultState)), data);
+        renderAll();
+      })
+      .catch(function () {
+        renderAll();
+      });
+
+    function renderAll() {
+      renderMuhurtham();
+      renderCountdown();
+      renderGuests();
+      renderTasks();
+      renderExpenses();
     }
 
+    // Debounced — batches rapid changes into a single API write
     function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(function () {
+        apiCall('PUT', 'data', state, getToken()).catch(function () {});
+      }, 800);
     }
 
     function fmtDate(iso) {
@@ -474,13 +507,6 @@
       document.getElementById('expDate').value = '';
       renderExpenses();
     });
-
-    // ── Init renders ──
-    renderMuhurtham();
-    renderCountdown();
-    renderGuests();
-    renderTasks();
-    renderExpenses();
 
     setInterval(renderCountdown, 60 * 1000);
   }
