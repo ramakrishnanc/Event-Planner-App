@@ -44,6 +44,21 @@
 
   // ── Auth ─────────────────────────────────────────────────
   var GP_SESSION_KEY = 'gp-session';
+  var GP_EVENT_KEY = 'gp-event';
+
+  var EVENT_TYPES = [
+    { id: 'gruhapravesham', label: 'House Warming', icon: '\uD83C\uDFE0', title: 'Gruhapravesham Planner', tagline: 'Plan the housewarming with calm and clarity' },
+    { id: 'birthday',       label: 'Birthday',       icon: '\uD83C\uDF82', title: 'Birthday Planner',       tagline: 'Plan a joyful celebration' },
+    { id: 'marriage',       label: 'Marriage',       icon: '\uD83D\uDC8D', title: 'Marriage Planner',       tagline: 'Plan the auspicious union with grace' },
+    { id: 'puja',           label: 'Puja',           icon: '\u0950',       title: 'Puja Planner',           tagline: 'Plan the ritual with devotion' },
+    { id: 'retirement',     label: 'Retirement',     icon: '\uD83C\uDF89', title: 'Retirement Planner',     tagline: 'Honour a life of service' },
+    { id: 'other',          label: 'Other',          icon: '\u2728',       title: 'Event Planner',          tagline: 'Plan your special occasion' }
+  ];
+
+  function getEvent() {
+    try { return JSON.parse(localStorage.getItem(GP_EVENT_KEY)); }
+    catch (e) { return null; }
+  }
 
   function getSession() {
     try { return JSON.parse(localStorage.getItem(GP_SESSION_KEY)); }
@@ -100,7 +115,8 @@
       .then(function (res) {
         localStorage.setItem('gp-jwt', res.token);
         localStorage.setItem(GP_SESSION_KEY, JSON.stringify(res.user));
-        showApp(res.user);
+        showEventPicker(res.user);
+        setSubmitState(loginFormEl, false);
       })
       .catch(function (err) {
         setAuthError('loginError', err.message);
@@ -126,7 +142,8 @@
       .then(function (res) {
         localStorage.setItem('gp-jwt', res.token);
         localStorage.setItem(GP_SESSION_KEY, JSON.stringify(res.user));
-        showApp(res.user);
+        showEventPicker(res.user);
+        setSubmitState(registerFormEl, false);
       })
       .catch(function (err) {
         setAuthError('registerError', err.message);
@@ -137,24 +154,81 @@
   document.getElementById('logoutBtn').addEventListener('click', function () {
     localStorage.removeItem('gp-jwt');
     localStorage.removeItem(GP_SESSION_KEY);
+    localStorage.removeItem(GP_EVENT_KEY);
     document.getElementById('appShell').classList.add('hidden');
+    document.getElementById('eventPicker').classList.add('hidden');
     document.getElementById('authScreen').classList.remove('hidden');
     loginFormEl.reset();
     clearAuthError('loginError');
   });
 
-  function showApp(session) {
+  document.getElementById('eventBackBtn').addEventListener('click', function () {
+    document.getElementById('logoutBtn').click();
+  });
+
+  document.getElementById('changeEventBtn').addEventListener('click', function () {
+    var session = getSession();
+    if (session) showEventPicker(session);
+  });
+
+  function renderEventTiles(session) {
+    var grid = document.getElementById('eventGrid');
+    grid.innerHTML = '';
+    EVENT_TYPES.forEach(function (ev) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'event-tile';
+      var icon = document.createElement('span');
+      icon.className = 'event-tile-icon';
+      icon.textContent = ev.icon;
+      var lbl = document.createElement('span');
+      lbl.className = 'event-tile-label';
+      lbl.textContent = ev.label;
+      btn.appendChild(icon);
+      btn.appendChild(lbl);
+      btn.addEventListener('click', function () {
+        localStorage.setItem(GP_EVENT_KEY, JSON.stringify(ev));
+        showApp(session, ev);
+      });
+      grid.appendChild(btn);
+    });
+  }
+
+  function showEventPicker(session) {
     document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appShell').classList.add('hidden');
+    document.getElementById('eventPicker').classList.remove('hidden');
+    document.getElementById('eventPickerGreeting').textContent =
+      'Namaste, ' + session.name.split(' ')[0] + ' \u2014 what are we planning?';
+    renderEventTiles(session);
+  }
+
+  var appInitialized = false;
+  function showApp(session, event) {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('eventPicker').classList.add('hidden');
     document.getElementById('appShell').classList.remove('hidden');
     document.getElementById('userGreeting').textContent = 'Namaste, ' + session.name.split(' ')[0];
-    initApp();
+    if (event) {
+      document.getElementById('appTitle').textContent = event.title;
+      document.getElementById('appTagline').textContent = event.tagline;
+    }
+    if (!appInitialized) {
+      initApp();
+      appInitialized = true;
+    }
   }
 
   // Restore session on page load
   var existingSession = getSession();
   var existingToken = getToken();
+  var existingEvent = getEvent();
   if (existingSession && existingToken && !isTokenExpired(existingToken)) {
-    showApp(existingSession);
+    if (existingEvent) {
+      showApp(existingSession, existingEvent);
+    } else {
+      showEventPicker(existingSession);
+    }
   }
 
   // ── Main App ─────────────────────────────────────────────

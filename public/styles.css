@@ -626,7 +626,87 @@ input[type="checkbox"].task-check {
 }
 .btn-logout:hover { background: rgba(255, 248, 231, 0.22); }
 
+/* ── Event Picker ────────────────────────────────────────── */
+.event-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  background:
+    repeating-linear-gradient(45deg, transparent, transparent 18px, rgba(212,161,59,0.055) 18px, rgba(212,161,59,0.055) 20px),
+    repeating-linear-gradient(-45deg, transparent, transparent 18px, rgba(212,161,59,0.055) 18px, rgba(212,161,59,0.055) 20px),
+    linear-gradient(150deg, #4a0814 0%, var(--maroon) 40%, #9b2d1a 100%);
+}
+.event-card {
+  position: relative;
+  background: #fffdf6;
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  padding: 44px 48px 32px;
+  width: 100%;
+  max-width: 640px;
+  box-shadow:
+    0 0 0 8px rgba(74, 8, 20, 0.88),
+    0 32px 80px rgba(0, 0, 0, 0.55);
+  animation: authFadeIn 0.45s ease both;
+}
+.event-card::before {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(212, 161, 59, 0.38);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.event-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 8px;
+}
+.event-tile {
+  background: #fff8ee;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 18px 12px 16px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s, background 0.12s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.event-tile:hover {
+  border-color: var(--gold);
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(124, 29, 46, 0.12);
+  transform: translateY(-2px);
+}
+.event-tile-icon {
+  font-size: 32px;
+  line-height: 1;
+  color: var(--maroon);
+}
+.event-tile-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.2px;
+}
+.event-back {
+  margin-top: 22px;
+  width: 100%;
+}
+
 @media (max-width: 820px) {
   .auth-card { padding: 36px 28px 28px; }
+  .event-card { padding: 36px 24px 24px; }
+  .event-grid { grid-template-columns: repeat(2, 1fr); }
   .hero-right { align-items: flex-start; }
 }

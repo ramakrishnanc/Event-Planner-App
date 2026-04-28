@@ -75,14 +75,38 @@
     </div>
   </div>
 
-  <!-- APP SHELL (hidden until login) -->
+  <!-- EVENT PICKER (shown after login, before app) -->
+  <div id="eventPicker" class="event-picker hidden">
+    <div class="auth-bg-ring auth-bg-ring-1"></div>
+    <div class="auth-bg-ring auth-bg-ring-2"></div>
+    <div class="event-card">
+      <span class="auth-diamond auth-diamond-tl"></span>
+      <span class="auth-diamond auth-diamond-tr"></span>
+      <span class="auth-diamond auth-diamond-bl"></span>
+      <span class="auth-diamond auth-diamond-br"></span>
+      <div class="auth-brand">
+        <div class="auth-om">&#x950;</div>
+        <h1 class="auth-app-title">Choose Your Event</h1>
+        <p class="auth-app-sub" id="eventPickerGreeting">Welcome</p>
+      </div>
+      <div class="auth-divider">
+        <span class="auth-divider-line"></span>
+        <span class="auth-divider-icon">✿</span>
+        <span class="auth-divider-line"></span>
+      </div>
+      <div class="event-grid" id="eventGrid"></div>
+      <button type="button" class="btn-ghost event-back" id="eventBackBtn">&larr; Sign out</button>
+    </div>
+  </div>
+
+  <!-- APP SHELL (hidden until login & event chosen) -->
   <div id="appShell" class="hidden">
     <header class="hero">
       <div class="hero-inner">
         <div class="title-block">
           <span class="om">&#x950;</span>
-          <h1>Gruhapravesham Planner</h1>
-          <p class="tagline">Plan the housewarming with calm and clarity</p>
+          <h1 id="appTitle">Gruhapravesham Planner</h1>
+          <p class="tagline" id="appTagline">Plan the housewarming with calm and clarity</p>
         </div>
         <div class="hero-right">
           <div class="countdown-card">
@@ -92,6 +116,7 @@
           </div>
           <div class="user-bar">
             <span id="userGreeting" class="user-greeting"></span>
+            <button id="changeEventBtn" class="btn-logout" type="button">Change Event</button>
             <button id="logoutBtn" class="btn-logout" type="button">Sign Out</button>
           </div>
         </div>
