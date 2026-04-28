@@ -15,8 +15,15 @@
     if (token) opts.headers['Authorization'] = 'Bearer ' + token;
     if (body !== undefined && body !== null) opts.body = JSON.stringify(body);
     return fetch('/api/' + path, opts).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok) throw new Error(data.error || 'Request failed');
+      return res.text().then(function (text) {
+        var data = {};
+        if (text) {
+          try { data = JSON.parse(text); }
+          catch (e) {
+            throw new Error('Server returned an unexpected response (' + res.status + '). ' + (text.slice(0, 120) || ''));
+          }
+        }
+        if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
         return data;
       });
     });
