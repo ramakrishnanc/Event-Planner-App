@@ -46,14 +46,68 @@
   var GP_SESSION_KEY = 'gp-session';
   var GP_EVENT_KEY = 'gp-event';
 
+  var ALL_FIELDS = ['date', 'time', 'nakshatra', 'venue', 'priest', 'honoree', 'theme', 'notes'];
+
   var EVENT_TYPES = [
-    { id: 'gruhapravesham', label: 'House Warming', icon: '\uD83C\uDFE0', title: 'Gruhapravesham Planner', tagline: 'Plan the housewarming with calm and clarity' },
-    { id: 'birthday',       label: 'Birthday',       icon: '\uD83C\uDF82', title: 'Birthday Planner',       tagline: 'Plan a joyful celebration' },
-    { id: 'marriage',       label: 'Marriage',       icon: '\uD83D\uDC8D', title: 'Marriage Planner',       tagline: 'Plan the auspicious union with grace' },
-    { id: 'puja',           label: 'Puja',           icon: '\u0950',       title: 'Puja Planner',           tagline: 'Plan the ritual with devotion' },
-    { id: 'retirement',     label: 'Retirement',     icon: '\uD83C\uDF89', title: 'Retirement Planner',     tagline: 'Honour a life of service' },
-    { id: 'other',          label: 'Other',          icon: '\u2728',       title: 'Event Planner',          tagline: 'Plan your special occasion' }
+    {
+      id: 'gruhapravesham', label: 'House Warming', icon: '\uD83C\uDFE0',
+      title: 'Gruhapravesham Planner', tagline: 'Plan the housewarming with calm and clarity',
+      themeClass: 'theme-gruhapravesham',
+      sectionTitle: 'Muhurtham Details',
+      countdownPlaceholder: 'Set the muhurtham below',
+      fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'notes'],
+      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Return Gifts', 'Gifts', 'Travel', 'Other']
+    },
+    {
+      id: 'birthday', label: 'Birthday', icon: '\uD83C\uDF82',
+      title: 'Birthday Planner', tagline: 'Plan a joyful celebration',
+      themeClass: 'theme-birthday',
+      sectionTitle: 'Birthday Details',
+      countdownPlaceholder: 'Set the date below',
+      fields: ['date', 'time', 'venue', 'honoree', 'theme', 'notes'],
+      honoreeLabel: 'Birthday Person',
+      categories: ['Cake', 'Food & Catering', 'Decoration', 'Venue', 'Photographer', 'Entertainment', 'Gifts', 'Return Gifts', 'Other']
+    },
+    {
+      id: 'marriage', label: 'Marriage', icon: '\uD83D\uDC8D',
+      title: 'Marriage Planner', tagline: 'Plan the auspicious union with grace',
+      themeClass: 'theme-marriage',
+      sectionTitle: 'Wedding Details',
+      countdownPlaceholder: 'Set the muhurtham below',
+      fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'notes'],
+      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Attire', 'Jewelry', 'Venue', 'Return Gifts', 'Gifts', 'Travel', 'Other']
+    },
+    {
+      id: 'puja', label: 'Puja', icon: '\u0950',
+      title: 'Puja Planner', tagline: 'Plan the ritual with devotion',
+      themeClass: 'theme-puja',
+      sectionTitle: 'Puja Details',
+      countdownPlaceholder: 'Set the muhurtham below',
+      fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'notes'],
+      categories: ['Pooja Items', 'Food & Prasadam', 'Priest Dakshina', 'Decoration', 'Flowers', 'Other']
+    },
+    {
+      id: 'retirement', label: 'Retirement', icon: '\uD83C\uDF89',
+      title: 'Retirement Planner', tagline: 'Honour a life of service',
+      themeClass: 'theme-retirement',
+      sectionTitle: 'Retirement Details',
+      countdownPlaceholder: 'Set the date below',
+      fields: ['date', 'time', 'venue', 'honoree', 'notes'],
+      honoreeLabel: 'Honoree',
+      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Mementos', 'Gifts', 'Other']
+    },
+    {
+      id: 'other', label: 'Other', icon: '\u2728',
+      title: 'Event Planner', tagline: 'Plan your special occasion',
+      themeClass: 'theme-other',
+      sectionTitle: 'Event Details',
+      countdownPlaceholder: 'Set the date below',
+      fields: ['date', 'time', 'venue', 'notes'],
+      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Gifts', 'Other']
+    }
   ];
+
+  var currentEvent = null;
 
   function getEvent() {
     try { return JSON.parse(localStorage.getItem(GP_EVENT_KEY)); }
@@ -155,6 +209,9 @@
     localStorage.removeItem('gp-jwt');
     localStorage.removeItem(GP_SESSION_KEY);
     localStorage.removeItem(GP_EVENT_KEY);
+    currentEvent = null;
+    var allThemes = EVENT_TYPES.map(function (e) { return e.themeClass; });
+    document.body.classList.remove.apply(document.body.classList, allThemes);
     document.getElementById('appShell').classList.add('hidden');
     document.getElementById('eventPicker').classList.add('hidden');
     document.getElementById('authScreen').classList.remove('hidden');
@@ -203,6 +260,45 @@
     renderEventTiles(session);
   }
 
+  function applyEventTheme(event) {
+    var allThemes = EVENT_TYPES.map(function (e) { return e.themeClass; });
+    document.body.classList.remove.apply(document.body.classList, allThemes);
+    document.body.classList.add(event.themeClass);
+
+    document.getElementById('appTitle').textContent = event.title;
+    document.getElementById('appTagline').textContent = event.tagline;
+    document.getElementById('appOm').textContent = event.icon;
+    document.getElementById('muhurthamSectionTitle').textContent = event.sectionTitle;
+
+    ALL_FIELDS.forEach(function (f) {
+      var visible = event.fields.indexOf(f) >= 0;
+      var nodes = document.querySelectorAll('[data-field="' + f + '"]');
+      for (var i = 0; i < nodes.length; i++) {
+        nodes[i].classList.toggle('hidden', !visible);
+      }
+    });
+
+    if (event.honoreeLabel) {
+      var hLabel = document.getElementById('mHonoreeLabel');
+      var fLabel = document.getElementById('fHonoreeLabel');
+      if (hLabel) hLabel.textContent = event.honoreeLabel;
+      if (fLabel) {
+        fLabel.childNodes[0].nodeValue = event.honoreeLabel;
+      }
+    }
+
+    var sel = document.getElementById('expCategory');
+    var prev = sel.value;
+    sel.innerHTML = '';
+    event.categories.forEach(function (cat) {
+      var opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      sel.appendChild(opt);
+    });
+    if (event.categories.indexOf(prev) >= 0) sel.value = prev;
+  }
+
   var appInitialized = false;
   function showApp(session, event) {
     document.getElementById('authScreen').classList.add('hidden');
@@ -210,12 +306,21 @@
     document.getElementById('appShell').classList.remove('hidden');
     document.getElementById('userGreeting').textContent = 'Namaste, ' + session.name.split(' ')[0];
     if (event) {
-      document.getElementById('appTitle').textContent = event.title;
-      document.getElementById('appTagline').textContent = event.tagline;
+      currentEvent = event;
+      applyEventTheme(event);
     }
     if (!appInitialized) {
       initApp();
       appInitialized = true;
+    } else {
+      renderCountdownIfPossible();
+    }
+  }
+
+  function renderCountdownIfPossible() {
+    var label = document.getElementById('eventDateLabel');
+    if (label && !label.textContent.match(/\d/)) {
+      label.textContent = currentEvent ? currentEvent.countdownPlaceholder : 'Set the date below';
     }
   }
 
@@ -234,7 +339,7 @@
   // ── Main App ─────────────────────────────────────────────
   function initApp() {
     var defaultState = {
-      muhurtham: { date: '', time: '', nakshatra: '', venue: '', priest: '', notes: '' },
+      muhurtham: { date: '', time: '', nakshatra: '', venue: '', priest: '', honoree: '', theme: '', notes: '' },
       guests: [],
       tasks: [],
       expenses: []
@@ -297,7 +402,7 @@
       var time = state.muhurtham.time;
       if (!date) {
         el.textContent = '--';
-        label.textContent = 'Set the muhurtham below';
+        label.textContent = (currentEvent && currentEvent.countdownPlaceholder) || 'Set the date below';
         return;
       }
       var target = new Date(date + 'T' + (time || '00:00') + ':00');
@@ -326,6 +431,8 @@
       document.getElementById('mNakshatra').textContent = m.nakshatra || '\u2014';
       document.getElementById('mVenue').textContent = m.venue || '\u2014';
       document.getElementById('mPriest').textContent = m.priest || '\u2014';
+      document.getElementById('mHonoree').textContent = m.honoree || '\u2014';
+      document.getElementById('mTheme').textContent = m.theme || '\u2014';
       document.getElementById('mNotes').textContent = m.notes || '\u2014';
     }
 
@@ -336,6 +443,8 @@
       document.getElementById('fNakshatra').value = m.nakshatra || '';
       document.getElementById('fVenue').value = m.venue || '';
       document.getElementById('fPriest').value = m.priest || '';
+      document.getElementById('fHonoree').value = m.honoree || '';
+      document.getElementById('fTheme').value = m.theme || '';
       document.getElementById('fNotes').value = m.notes || '';
       document.getElementById('muhurthamView').classList.add('hidden');
       document.getElementById('muhurthamForm').classList.remove('hidden');
@@ -356,6 +465,8 @@
         nakshatra: document.getElementById('fNakshatra').value.trim(),
         venue: document.getElementById('fVenue').value.trim(),
         priest: document.getElementById('fPriest').value.trim(),
+        honoree: document.getElementById('fHonoree').value.trim(),
+        theme: document.getElementById('fTheme').value.trim(),
         notes: document.getElementById('fNotes').value.trim()
       };
       saveState();

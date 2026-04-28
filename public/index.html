@@ -104,7 +104,7 @@
     <header class="hero">
       <div class="hero-inner">
         <div class="title-block">
-          <span class="om">&#x950;</span>
+          <span class="om" id="appOm">&#x950;</span>
           <h1 id="appTitle">Gruhapravesham Planner</h1>
           <p class="tagline" id="appTagline">Plan the housewarming with calm and clarity</p>
         </div>
@@ -124,30 +124,34 @@
     </header>
 
     <main class="container">
-      <!-- Muhurtham Section -->
+      <!-- Details Section (label varies per event) -->
       <section class="card" id="muhurthamSection">
         <div class="card-head">
-          <h2>Muhurtham Details</h2>
+          <h2 id="muhurthamSectionTitle">Muhurtham Details</h2>
           <button class="btn-ghost" id="editMuhurthamBtn">Edit</button>
         </div>
         <div class="muhurtham-view" id="muhurthamView">
           <div class="muhurtham-grid">
-            <div><span class="label">Date</span><span class="value" id="mDate">&mdash;</span></div>
-            <div><span class="label">Time</span><span class="value" id="mTime">&mdash;</span></div>
-            <div><span class="label">Tithi / Nakshatra</span><span class="value" id="mNakshatra">&mdash;</span></div>
-            <div><span class="label">Venue</span><span class="value" id="mVenue">&mdash;</span></div>
-            <div class="full"><span class="label">Priest / Contact</span><span class="value" id="mPriest">&mdash;</span></div>
-            <div class="full"><span class="label">Notes</span><span class="value" id="mNotes">&mdash;</span></div>
+            <div data-field="date"><span class="label">Date</span><span class="value" id="mDate">&mdash;</span></div>
+            <div data-field="time"><span class="label">Time</span><span class="value" id="mTime">&mdash;</span></div>
+            <div data-field="nakshatra"><span class="label">Tithi / Nakshatra</span><span class="value" id="mNakshatra">&mdash;</span></div>
+            <div data-field="venue"><span class="label">Venue</span><span class="value" id="mVenue">&mdash;</span></div>
+            <div class="full" data-field="priest"><span class="label">Priest / Contact</span><span class="value" id="mPriest">&mdash;</span></div>
+            <div class="full" data-field="honoree"><span class="label" id="mHonoreeLabel">Honoree</span><span class="value" id="mHonoree">&mdash;</span></div>
+            <div class="full" data-field="theme"><span class="label">Theme</span><span class="value" id="mTheme">&mdash;</span></div>
+            <div class="full" data-field="notes"><span class="label">Notes</span><span class="value" id="mNotes">&mdash;</span></div>
           </div>
         </div>
         <form class="muhurtham-form hidden" id="muhurthamForm">
           <div class="form-grid">
-            <label>Date<input type="date" id="fDate" required /></label>
-            <label>Time<input type="time" id="fTime" required /></label>
-            <label>Tithi / Nakshatra<input type="text" id="fNakshatra" placeholder="e.g. Rohini, Shukla Paksha" /></label>
-            <label>Venue<input type="text" id="fVenue" placeholder="House address" /></label>
-            <label class="full">Priest / Contact<input type="text" id="fPriest" placeholder="Name &amp; phone" /></label>
-            <label class="full">Notes<textarea id="fNotes" rows="2" placeholder="Items to bring, pooja samagri, etc."></textarea></label>
+            <label data-field="date">Date<input type="date" id="fDate" required /></label>
+            <label data-field="time">Time<input type="time" id="fTime" required /></label>
+            <label data-field="nakshatra">Tithi / Nakshatra<input type="text" id="fNakshatra" placeholder="e.g. Rohini, Shukla Paksha" /></label>
+            <label data-field="venue">Venue<input type="text" id="fVenue" placeholder="Address" /></label>
+            <label class="full" data-field="priest">Priest / Contact<input type="text" id="fPriest" placeholder="Name &amp; phone" /></label>
+            <label class="full" data-field="honoree" id="fHonoreeLabel">Honoree<input type="text" id="fHonoree" placeholder="Name of the person being honoured" /></label>
+            <label class="full" data-field="theme">Theme<input type="text" id="fTheme" placeholder="e.g. Superhero, Floral, Bollywood" /></label>
+            <label class="full" data-field="notes">Notes<textarea id="fNotes" rows="2" placeholder="Things to remember"></textarea></label>
           </div>
           <div class="form-actions">
             <button type="button" class="btn-ghost" id="cancelMuhurthamBtn">Cancel</button>
