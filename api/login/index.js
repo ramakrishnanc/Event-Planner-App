@@ -15,11 +15,23 @@ module.exports = async function (context, req) {
   try {
     var pool = await getPool();
 
-    var result = await pool.request()
-      .input('email', email)
-      .query('SELECT id, name, email, password_hash FROM Users WHERE email = @email');
+    var found;
+    try {
+      var result = await pool.request()
+        .input('email', email)
+        .query(
+          'SELECT id, name, email, password_hash, role, vendor_category, vendor_phone, vendor_city ' +
+          'FROM Users WHERE email = @email'
+        );
+      found = result.recordset[0];
+    } catch (schemaErr) {
+      context.log.warn('Falling back to legacy Users schema on login: ' + schemaErr.message);
+      var legacy = await pool.request()
+        .input('email', email)
+        .query('SELECT id, name, email, password_hash FROM Users WHERE email = @email');
+      found = legacy.recordset[0];
+    }
 
-    var found = result.recordset[0];
     if (!found) {
       context.res = { status: 401, body: { error: 'Incorrect email or password.' } };
       return;
@@ -31,7 +43,15 @@ module.exports = async function (context, req) {
       return;
     }
 
-    var user = { id: found.id, name: found.name, email: found.email };
+    var user = {
+      id: found.id,
+      name: found.name,
+      email: found.email,
+      role: found.role || 'user',
+      vendorCategory: found.vendor_category || '',
+      vendorPhone: found.vendor_phone || '',
+      vendorCity: found.vendor_city || ''
+    };
     var token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '30d' });
 
     context.res = { status: 200, body: { token: token, user: user } };

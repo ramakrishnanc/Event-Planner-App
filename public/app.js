@@ -45,6 +45,18 @@
   // ── Auth ─────────────────────────────────────────────────
   var GP_SESSION_KEY = 'gp-session';
   var GP_EVENT_KEY = 'gp-event';
+  var GP_VENDOR_EVENTS_KEY = 'gp-vendor-events';
+
+  var VENDOR_CATEGORY_LABELS = {
+    caterer: 'Caterer',
+    photographer: 'Photographer',
+    priest: 'Priest',
+    decorator: 'Decorator',
+    makeup: 'Makeup Artist',
+    venue: 'Venue',
+    entertainment: 'Entertainment',
+    other: 'Other'
+  };
 
   var ALL_FIELDS = ['date', 'time', 'nakshatra', 'venue', 'priest', 'honoree', 'theme', 'notes'];
 
@@ -56,7 +68,7 @@
       sectionTitle: 'Muhurtham Details',
       countdownPlaceholder: 'Set the muhurtham below',
       fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'notes'],
-      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Return Gifts', 'Gifts', 'Travel', 'Other']
+      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Return Gifts', 'Gifts', 'Travel', 'Other']
     },
     {
       id: 'birthday', label: 'Birthday', icon: '\uD83C\uDF82',
@@ -66,7 +78,7 @@
       countdownPlaceholder: 'Set the date below',
       fields: ['date', 'time', 'venue', 'honoree', 'theme', 'notes'],
       honoreeLabel: 'Birthday Person',
-      categories: ['Cake', 'Food & Catering', 'Decoration', 'Venue', 'Photographer', 'Entertainment', 'Gifts', 'Return Gifts', 'Other']
+      categories: ['Cake', 'Food & Catering', 'Decoration', 'Venue', 'Photographer', 'Makeup', 'Entertainment', 'Gifts', 'Return Gifts', 'Other']
     },
     {
       id: 'marriage', label: 'Marriage', icon: '\uD83D\uDC8D',
@@ -75,7 +87,17 @@
       sectionTitle: 'Wedding Details',
       countdownPlaceholder: 'Set the muhurtham below',
       fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'notes'],
-      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Attire', 'Jewelry', 'Venue', 'Return Gifts', 'Gifts', 'Travel', 'Other']
+      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Attire', 'Jewelry', 'Venue', 'Return Gifts', 'Gifts', 'Travel', 'Other']
+    },
+    {
+      id: 'engagement', label: 'Engagement', icon: '\uD83D\uDC8D',
+      title: 'Engagement Planner', tagline: 'Plan the betrothal with grace',
+      themeClass: 'theme-engagement',
+      sectionTitle: 'Engagement Details',
+      countdownPlaceholder: 'Set the muhurtham below',
+      fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'honoree', 'theme', 'notes'],
+      honoreeLabel: 'Couple',
+      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Attire', 'Jewelry', 'Venue', 'Rings', 'Return Gifts', 'Gifts', 'Travel', 'Other']
     },
     {
       id: 'puja', label: 'Puja', icon: '\u0950',
@@ -94,7 +116,7 @@
       countdownPlaceholder: 'Set the date below',
       fields: ['date', 'time', 'venue', 'honoree', 'notes'],
       honoreeLabel: 'Honoree',
-      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Mementos', 'Gifts', 'Other']
+      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Makeup', 'Mementos', 'Gifts', 'Other']
     },
     {
       id: 'other', label: 'Other', icon: '\u2728',
@@ -103,7 +125,7 @@
       sectionTitle: 'Event Details',
       countdownPlaceholder: 'Set the date below',
       fields: ['date', 'time', 'venue', 'notes'],
-      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Gifts', 'Other']
+      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Makeup', 'Gifts', 'Other']
     }
   ];
 
@@ -159,6 +181,41 @@
     clearAuthError('registerError');
   });
 
+  // Role toggle (User vs Vendor)
+  var selectedRole = 'user';
+  var roleOptions = registerFormEl.querySelectorAll('.role-option');
+  function applyRoleSelection(role) {
+    selectedRole = role;
+    for (var i = 0; i < roleOptions.length; i++) {
+      var opt = roleOptions[i];
+      var active = opt.getAttribute('data-role') === role;
+      opt.classList.toggle('role-option-active', active);
+      opt.setAttribute('aria-checked', active ? 'true' : 'false');
+    }
+    var isVendor = role === 'vendor';
+    document.getElementById('vendorCategoryField').classList.toggle('hidden', !isVendor);
+    document.getElementById('vendorPhoneField').classList.toggle('hidden', !isVendor);
+    document.getElementById('vendorCityField').classList.toggle('hidden', !isVendor);
+    document.getElementById('regNameLabel').textContent = isVendor ? 'Business / Your Name' : 'Your Name';
+    var nameInput = document.getElementById('regName');
+    nameInput.placeholder = isVendor ? 'e.g. Lakshmi Caterers' : 'e.g. Priya Krishnan';
+  }
+  for (var i = 0; i < roleOptions.length; i++) {
+    (function (opt) {
+      opt.addEventListener('click', function () {
+        applyRoleSelection(opt.getAttribute('data-role'));
+      });
+    })(roleOptions[i]);
+  }
+
+  function routeAfterAuth(user) {
+    if (user && user.role === 'vendor') {
+      showVendorHome(user);
+    } else {
+      showEventPicker(user);
+    }
+  }
+
   loginFormEl.addEventListener('submit', function (e) {
     e.preventDefault();
     clearAuthError('loginError');
@@ -169,7 +226,7 @@
       .then(function (res) {
         localStorage.setItem('gp-jwt', res.token);
         localStorage.setItem(GP_SESSION_KEY, JSON.stringify(res.user));
-        showEventPicker(res.user);
+        routeAfterAuth(res.user);
         setSubmitState(loginFormEl, false);
       })
       .catch(function (err) {
@@ -191,12 +248,19 @@
       return;
     }
 
+    var payload = { name: name, email: email, password: password, role: selectedRole };
+    if (selectedRole === 'vendor') {
+      payload.vendorCategory = document.getElementById('regVendorCategory').value;
+      payload.vendorPhone = document.getElementById('regVendorPhone').value.trim();
+      payload.vendorCity = document.getElementById('regVendorCity').value.trim();
+    }
+
     setSubmitState(registerFormEl, true);
-    apiCall('POST', 'register', { name: name, email: email, password: password })
+    apiCall('POST', 'register', payload)
       .then(function (res) {
         localStorage.setItem('gp-jwt', res.token);
         localStorage.setItem(GP_SESSION_KEY, JSON.stringify(res.user));
-        showEventPicker(res.user);
+        routeAfterAuth(res.user);
         setSubmitState(registerFormEl, false);
       })
       .catch(function (err) {
@@ -205,19 +269,26 @@
       });
   });
 
-  document.getElementById('logoutBtn').addEventListener('click', function () {
+  function performLogout() {
     localStorage.removeItem('gp-jwt');
     localStorage.removeItem(GP_SESSION_KEY);
     localStorage.removeItem(GP_EVENT_KEY);
     currentEvent = null;
     var allThemes = EVENT_TYPES.map(function (e) { return e.themeClass; });
     document.body.classList.remove.apply(document.body.classList, allThemes);
+    document.body.classList.remove('theme-vendor');
     document.getElementById('appShell').classList.add('hidden');
     document.getElementById('eventPicker').classList.add('hidden');
+    document.getElementById('vendorHome').classList.add('hidden');
     document.getElementById('authScreen').classList.remove('hidden');
     loginFormEl.reset();
+    registerFormEl.reset();
+    applyRoleSelection('user');
     clearAuthError('loginError');
-  });
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', performLogout);
+  document.getElementById('vendorLogoutBtn').addEventListener('click', performLogout);
 
   document.getElementById('eventBackBtn').addEventListener('click', function () {
     document.getElementById('logoutBtn').click();
@@ -254,10 +325,102 @@
   function showEventPicker(session) {
     document.getElementById('authScreen').classList.add('hidden');
     document.getElementById('appShell').classList.add('hidden');
+    document.getElementById('vendorHome').classList.add('hidden');
     document.getElementById('eventPicker').classList.remove('hidden');
     document.getElementById('eventPickerGreeting').textContent =
       'Namaste, ' + session.name.split(' ')[0] + ' \u2014 what are we planning?';
     renderEventTiles(session);
+  }
+
+  // \u2500\u2500 Vendor Home \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  function getVendorEvents() {
+    try { return JSON.parse(localStorage.getItem(GP_VENDOR_EVENTS_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function saveVendorEvents(list) {
+    localStorage.setItem(GP_VENDOR_EVENTS_KEY, JSON.stringify(list));
+  }
+
+  function renderVendorEvents() {
+    var list = document.getElementById('vendorEventList');
+    var empty = document.getElementById('vendorEventEmpty');
+    list.innerHTML = '';
+    var events = getVendorEvents().slice().sort(function (a, b) {
+      return (a.date || '').localeCompare(b.date || '');
+    });
+    events.forEach(function (ev) {
+      var li = document.createElement('li');
+      li.className = 'list-item';
+      var main = document.createElement('div');
+      main.className = 'main';
+      var title = document.createElement('span');
+      title.className = 'title';
+      title.textContent = ev.client + ' \u00b7 ' + ev.type;
+      main.appendChild(title);
+      var meta = document.createElement('span');
+      meta.className = 'meta';
+      var d = ev.date ? new Date(ev.date + 'T00:00:00') : null;
+      var dateStr = d && !isNaN(d) ? d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : ev.date;
+      meta.textContent = dateStr + (ev.venue ? ' \u00b7 ' + ev.venue : '');
+      main.appendChild(meta);
+      var del = document.createElement('button');
+      del.className = 'icon-btn';
+      del.type = 'button';
+      del.title = 'Remove';
+      del.textContent = '\u2715';
+      del.addEventListener('click', function () {
+        var remaining = getVendorEvents().filter(function (x) { return x.id !== ev.id; });
+        saveVendorEvents(remaining);
+        renderVendorEvents();
+      });
+      li.appendChild(main);
+      li.appendChild(del);
+      list.appendChild(li);
+    });
+    document.getElementById('vendorEventCount').textContent = events.length;
+    empty.classList.toggle('hidden', events.length > 0);
+  }
+
+  var vendorFormBound = false;
+  function bindVendorForm() {
+    if (vendorFormBound) return;
+    vendorFormBound = true;
+    document.getElementById('vendorEventForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var client = document.getElementById('veClient').value.trim();
+      var type = document.getElementById('veType').value;
+      var date = document.getElementById('veDate').value;
+      var venue = document.getElementById('veVenue').value.trim();
+      if (!client || !date) return;
+      var events = getVendorEvents();
+      events.push({ id: uid(), client: client, type: type, date: date, venue: venue });
+      saveVendorEvents(events);
+      document.getElementById('veClient').value = '';
+      document.getElementById('veDate').value = '';
+      document.getElementById('veVenue').value = '';
+      renderVendorEvents();
+    });
+  }
+
+  function showVendorHome(session) {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('eventPicker').classList.add('hidden');
+    document.getElementById('appShell').classList.add('hidden');
+    document.getElementById('vendorHome').classList.remove('hidden');
+    document.body.classList.add('theme-vendor');
+
+    var category = session.vendorCategory || '';
+    var label = VENDOR_CATEGORY_LABELS[category] || 'Vendor';
+    document.getElementById('vendorGreeting').textContent = 'Namaste, ' + session.name.split(' ')[0];
+    document.getElementById('vendorTitle').textContent = label + ' Dashboard';
+    document.getElementById('vendorCategoryChip').textContent = label;
+    document.getElementById('vpName').textContent = session.name || '\u2014';
+    document.getElementById('vpCategory').textContent = label;
+    document.getElementById('vpPhone').textContent = session.vendorPhone || '\u2014';
+    document.getElementById('vpCity').textContent = session.vendorCity || '\u2014';
+
+    bindVendorForm();
+    renderVendorEvents();
   }
 
   function applyEventTheme(event) {
@@ -329,7 +492,9 @@
   var existingToken = getToken();
   var existingEvent = getEvent();
   if (existingSession && existingToken && !isTokenExpired(existingToken)) {
-    if (existingEvent) {
+    if (existingSession.role === 'vendor') {
+      showVendorHome(existingSession);
+    } else if (existingEvent) {
       showApp(existingSession, existingEvent);
     } else {
       showEventPicker(existingSession);

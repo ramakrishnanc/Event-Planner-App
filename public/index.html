@@ -53,8 +53,44 @@
       <form id="registerForm" class="auth-form hidden">
         <div class="auth-error hidden" id="registerError"></div>
         <div class="auth-field">
-          <label for="regName">Your Name</label>
+          <label>I am registering as</label>
+          <div class="role-toggle" role="radiogroup" aria-label="Account type">
+            <button type="button" class="role-option role-option-active" data-role="user" role="radio" aria-checked="true">
+              <span class="role-icon">&#128100;</span>
+              <span class="role-label">Event Planner</span>
+              <span class="role-sub">Plan my own events</span>
+            </button>
+            <button type="button" class="role-option" data-role="vendor" role="radio" aria-checked="false">
+              <span class="role-icon">&#127979;</span>
+              <span class="role-label">Vendor</span>
+              <span class="role-sub">Offer my services</span>
+            </button>
+          </div>
+        </div>
+        <div class="auth-field">
+          <label for="regName"><span id="regNameLabel">Your Name</span></label>
           <input type="text" id="regName" placeholder="e.g. Priya Krishnan" required autocomplete="name" />
+        </div>
+        <div class="auth-field hidden" id="vendorCategoryField">
+          <label for="regVendorCategory">Vendor Category</label>
+          <select id="regVendorCategory">
+            <option value="caterer">Caterer</option>
+            <option value="photographer">Photographer</option>
+            <option value="priest">Priest</option>
+            <option value="decorator">Decorator</option>
+            <option value="makeup">Makeup Artist</option>
+            <option value="venue">Venue</option>
+            <option value="entertainment">Entertainment</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="auth-field hidden" id="vendorPhoneField">
+          <label for="regVendorPhone">Phone</label>
+          <input type="tel" id="regVendorPhone" placeholder="Contact number" autocomplete="tel" />
+        </div>
+        <div class="auth-field hidden" id="vendorCityField">
+          <label for="regVendorCity">City / Service Area</label>
+          <input type="text" id="regVendorCity" placeholder="e.g. Hyderabad" />
         </div>
         <div class="auth-field">
           <label for="regEmail">Email</label>
@@ -97,6 +133,68 @@
       <div class="event-grid" id="eventGrid"></div>
       <button type="button" class="btn-ghost event-back" id="eventBackBtn">&larr; Sign out</button>
     </div>
+  </div>
+
+  <!-- VENDOR HOME (shown after a vendor logs in) -->
+  <div id="vendorHome" class="vendor-home hidden">
+    <header class="hero vendor-hero">
+      <div class="hero-inner">
+        <div class="title-block">
+          <span class="om">&#127979;</span>
+          <h1 id="vendorTitle">Vendor Dashboard</h1>
+          <p class="tagline" id="vendorTagline">Events you have been booked for</p>
+        </div>
+        <div class="hero-right">
+          <div class="user-bar">
+            <span id="vendorGreeting" class="user-greeting"></span>
+            <button id="vendorLogoutBtn" class="btn-logout" type="button">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="container">
+      <section class="card">
+        <div class="card-head">
+          <h2>My Profile</h2>
+          <span class="chip chip-total" id="vendorCategoryChip">Vendor</span>
+        </div>
+        <div class="vendor-profile-grid">
+          <div><span class="label">Name</span><span class="value" id="vpName">&mdash;</span></div>
+          <div><span class="label">Category</span><span class="value" id="vpCategory">&mdash;</span></div>
+          <div><span class="label">Phone</span><span class="value" id="vpPhone">&mdash;</span></div>
+          <div><span class="label">City</span><span class="value" id="vpCity">&mdash;</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Events I'm Planning For</h2>
+          <div class="stats">
+            <span class="chip chip-ok"><span id="vendorEventCount">0</span> bookings</span>
+          </div>
+        </div>
+        <form id="vendorEventForm" class="inline-form">
+          <input type="text" id="veClient" placeholder="Client / Host name" required />
+          <select id="veType">
+            <option value="House Warming">House Warming</option>
+            <option value="Birthday">Birthday</option>
+            <option value="Marriage">Marriage</option>
+            <option value="Engagement">Engagement</option>
+            <option value="Puja">Puja</option>
+            <option value="Retirement">Retirement</option>
+            <option value="Other">Other</option>
+          </select>
+          <input type="date" id="veDate" required />
+          <input type="text" id="veVenue" placeholder="Venue (optional)" />
+          <button type="submit" class="btn-primary">Add</button>
+        </form>
+        <ul class="list" id="vendorEventList"></ul>
+        <p class="empty hidden" id="vendorEventEmpty">No events booked yet. Add your first one above.</p>
+      </section>
+    </main>
+    <footer class="foot">
+      <span>Vendor portal &mdash; Subham Bhavatu.</span>
+    </footer>
   </div>
 
   <!-- APP SHELL (hidden until login & event chosen) -->
@@ -216,6 +314,7 @@
             <option value="Decoration">Decoration</option>
             <option value="Priest Dakshina">Priest Dakshina</option>
             <option value="Photographer">Photographer</option>
+            <option value="Makeup">Makeup</option>
             <option value="Return Gifts">Return Gifts</option>
             <option value="Gifts">Gifts</option>
             <option value="Travel">Travel</option>
