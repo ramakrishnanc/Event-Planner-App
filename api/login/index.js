@@ -2,6 +2,23 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getPool } = require('../shared/db');
 
+var schemaCache = null;
+async function detectSchema(pool) {
+  if (schemaCache) return schemaCache;
+  var result = await pool.request().query(
+    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Users'"
+  );
+  var cols = {};
+  result.recordset.forEach(function (r) { cols[r.COLUMN_NAME.toLowerCase()] = true; });
+  schemaCache = {
+    hasRole: !!cols['role'],
+    hasVendorCategory: !!cols['vendor_category'],
+    hasVendorPhone: !!cols['vendor_phone'],
+    hasVendorCity: !!cols['vendor_city']
+  };
+  return schemaCache;
+}
+
 module.exports = async function (context, req) {
   var body = req.body || {};
   var email = (body.email || '').trim().toLowerCase();
@@ -14,24 +31,19 @@ module.exports = async function (context, req) {
 
   try {
     var pool = await getPool();
+    var schema = await detectSchema(pool);
 
-    var found;
-    try {
-      var result = await pool.request()
-        .input('email', email)
-        .query(
-          'SELECT id, name, email, password_hash, role, vendor_category, vendor_phone, vendor_city ' +
-          'FROM Users WHERE email = @email'
-        );
-      found = result.recordset[0];
-    } catch (schemaErr) {
-      context.log.warn('Falling back to legacy Users schema on login: ' + schemaErr.message);
-      var legacy = await pool.request()
-        .input('email', email)
-        .query('SELECT id, name, email, password_hash FROM Users WHERE email = @email');
-      found = legacy.recordset[0];
-    }
+    var selectCols = ['id', 'name', 'email', 'password_hash'];
+    if (schema.hasRole) selectCols.push('role');
+    if (schema.hasVendorCategory) selectCols.push('vendor_category');
+    if (schema.hasVendorPhone) selectCols.push('vendor_phone');
+    if (schema.hasVendorCity) selectCols.push('vendor_city');
 
+    var result = await pool.request()
+      .input('email', email)
+      .query('SELECT ' + selectCols.join(', ') + ' FROM Users WHERE email = @email');
+
+    var found = result.recordset[0];
     if (!found) {
       context.res = { status: 401, body: { error: 'Incorrect email or password.' } };
       return;
@@ -56,7 +68,7 @@ module.exports = async function (context, req) {
 
     context.res = { status: 200, body: { token: token, user: user } };
   } catch (err) {
-    context.log.error('Login error:', err.message);
+    context.log.error('Login error:', err && err.message, err && err.stack);
     context.res = { status: 500, body: { error: 'Something went wrong. Please try again.' } };
   }
 };

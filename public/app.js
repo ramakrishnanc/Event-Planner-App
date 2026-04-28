@@ -328,7 +328,7 @@
     document.getElementById('vendorHome').classList.add('hidden');
     document.getElementById('eventPicker').classList.remove('hidden');
     document.getElementById('eventPickerGreeting').textContent =
-      'Namaste, ' + session.name.split(' ')[0] + ' \u2014 what are we planning?';
+      'Hi ' + session.name.split(' ')[0] + ' \u2014 what are we planning?';
     renderEventTiles(session);
   }
 
@@ -411,7 +411,7 @@
 
     var category = session.vendorCategory || '';
     var label = VENDOR_CATEGORY_LABELS[category] || 'Vendor';
-    document.getElementById('vendorGreeting').textContent = 'Namaste, ' + session.name.split(' ')[0];
+    document.getElementById('vendorGreeting').textContent = 'Hi ' + session.name.split(' ')[0];
     document.getElementById('vendorTitle').textContent = label + ' Dashboard';
     document.getElementById('vendorCategoryChip').textContent = label;
     document.getElementById('vpName').textContent = session.name || '\u2014';
@@ -467,7 +467,7 @@
     document.getElementById('authScreen').classList.add('hidden');
     document.getElementById('eventPicker').classList.add('hidden');
     document.getElementById('appShell').classList.remove('hidden');
-    document.getElementById('userGreeting').textContent = 'Namaste, ' + session.name.split(' ')[0];
+    document.getElementById('userGreeting').textContent = 'Hi ' + session.name.split(' ')[0];
     if (event) {
       currentEvent = event;
       applyEventTheme(event);
