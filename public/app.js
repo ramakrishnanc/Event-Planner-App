@@ -523,9 +523,10 @@
         saveInFlight = null;
         console.error('Save failed:', err);
         if (err.status === 401 || err.status === 403) {
-          setSaveStatus('error', 'Session expired');
-          alert('Your session has expired. Please sign in again to keep your data saved.');
-          performLogout();
+          // Token rejected — keep the user in the app with their local copy
+          // (already backed up to offline storage) and let them re-sign-in
+          // when they're ready, rather than yanking them out mid-task.
+          setSaveStatus('error', 'Sign in again to sync');
         } else {
           setSaveStatus('error', 'Save failed — will retry');
           setTimeout(function () {
@@ -578,13 +579,6 @@
       if (migrated) scheduleSave();
     }).catch(function (err) {
       console.error('loadStore failed:', err);
-      var status = err && err.status;
-      if (status === 401 || status === 403) {
-        // Token rejected — drop the broken session so the user can sign in again.
-        performLogout();
-        setAuthError('loginError', 'Your session expired. Please sign in again.');
-        return;
-      }
       // Fall back to offline backup if present so the user keeps their data on screen.
       var offline = getOffline();
       if (offline) {
@@ -605,7 +599,12 @@
         lastSerialised = '';
       }
       dataLoaded = true;
-      setSaveStatus('error', 'Load failed');
+      var status = err && err.status;
+      if (status === 401 || status === 403) {
+        setSaveStatus('error', 'Sync paused — sign in again to save');
+      } else {
+        setSaveStatus('error', 'Load failed — using local copy');
+      }
     });
   }
 
