@@ -1,46 +1,18 @@
-const jwt = require('jsonwebtoken');
 const { getPool, ensureSchema, sql } = require('../shared/db');
 
 function readHeader(req, name) {
   if (!req || !req.headers) return '';
-  // Functions v3 (object with lowercase keys)
   var h = req.headers;
   if (typeof h.get === 'function') {
-    return h.get(name) || h.get(name.toLowerCase()) || h.get(name.toUpperCase()) || '';
+    return h.get(name) || h.get(name.toLowerCase()) || '';
   }
-  return h[name.toLowerCase()] || h[name] || h[name.toUpperCase()] || '';
-}
-
-function verifyToken(req, log) {
-  var auth = readHeader(req, 'authorization') || readHeader(req, 'Authorization');
-  if (!auth) {
-    if (log) log('verifyToken: no authorization header');
-    return null;
-  }
-  var token = auth.indexOf('Bearer ') === 0 ? auth.slice(7) : auth;
-  if (!token) {
-    if (log) log('verifyToken: empty token in header');
-    return null;
-  }
-  if (!process.env.JWT_SECRET) {
-    if (log) log('verifyToken: JWT_SECRET is not configured on the server');
-    return null;
-  }
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (e) {
-    if (log) log('verifyToken: JWT verify failed — ' + e.message);
-    return null;
-  }
+  return h[name.toLowerCase()] || h[name] || '';
 }
 
 module.exports = async function (context, req) {
-  var user = verifyToken(req, function (m) { context.log(m); });
-  if (!user) {
-    context.res = {
-      status: 401,
-      body: { error: 'Your session is invalid. Please sign in again.' }
-    };
+  var userId = (readHeader(req, 'x-user-id') || '').toString().trim();
+  if (!userId) {
+    context.res = { status: 401, body: { error: 'Please sign in.' } };
     return;
   }
 
@@ -50,7 +22,7 @@ module.exports = async function (context, req) {
 
     if (req.method === 'GET') {
       var result = await pool.request()
-        .input('userId', sql.NVarChar(50), user.id)
+        .input('userId', sql.NVarChar(50), userId)
         .query('SELECT data FROM PlannerData WHERE user_id = @userId');
 
       if (result.recordset.length === 0) {
@@ -62,7 +34,7 @@ module.exports = async function (context, req) {
       try {
         context.res = { status: 200, body: JSON.parse(raw) };
       } catch (parseErr) {
-        context.log.error('PlannerData parse error for user ' + user.id + ': ' + parseErr.message);
+        context.log.error('PlannerData parse error for user ' + userId + ': ' + parseErr.message);
         context.res = { status: 200, body: null };
       }
       return;
@@ -81,7 +53,7 @@ module.exports = async function (context, req) {
       }
 
       await pool.request()
-        .input('userId', sql.NVarChar(50), user.id)
+        .input('userId', sql.NVarChar(50), userId)
         .input('data', sql.NVarChar(sql.MAX), payload)
         .query(
           'MERGE PlannerData AS target ' +

@@ -1,5 +1,3 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { getPool, ensureSchema, sql } = require('../shared/db');
 
 var ALLOWED_VENDOR_CATEGORIES = [
@@ -11,7 +9,7 @@ module.exports = async function (context, req) {
   var body = req.body || {};
   var name = (body.name || '').trim();
   var email = (body.email || '').trim().toLowerCase();
-  var pin = (body.pin || body.password || '').toString();
+  var pin = (body.pin || body.password || '').toString().trim();
   var role = (body.role || 'user').toLowerCase();
   if (role !== 'vendor') role = 'user';
 
@@ -49,14 +47,16 @@ module.exports = async function (context, req) {
       return;
     }
 
-    var passwordHash = await bcrypt.hash(pin, 10);
     var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+    // password_hash is a legacy NOT NULL column; we now store the PIN in the
+    // dedicated `pin` column and put the same value into password_hash so the
+    // INSERT keeps working without a schema change.
     await pool.request()
       .input('id', sql.NVarChar(50), id)
       .input('name', sql.NVarChar(200), name)
       .input('email', sql.NVarChar(320), email)
-      .input('passwordHash', sql.NVarChar(200), passwordHash)
+      .input('passwordHash', sql.NVarChar(200), pin)
       .input('pin', sql.NVarChar(10), pin)
       .input('role', sql.NVarChar(20), role)
       .input('vendorCategory', sql.NVarChar(50), vendorCategory)
@@ -71,9 +71,8 @@ module.exports = async function (context, req) {
       id: id, name: name, email: email, role: role,
       vendorCategory: vendorCategory, vendorPhone: vendorPhone, vendorCity: vendorCity
     };
-    var token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '30d' });
 
-    context.res = { status: 201, body: { token: token, user: user } };
+    context.res = { status: 201, body: { user: user } };
   } catch (err) {
     var message = (err && err.message) || 'unknown error';
     context.log.error('Register error:', message, err && err.stack);

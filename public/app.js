@@ -33,9 +33,9 @@
   }
 
   // ── API helper ───────────────────────────────────────────
-  function apiCall(method, path, body, token) {
+  function apiCall(method, path, body, userId) {
     var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
-    if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+    if (userId) opts.headers['x-user-id'] = userId;
     if (body !== undefined && body !== null) opts.body = JSON.stringify(body);
     return fetch('/api/' + path, opts).then(function (res) {
       return res.text().then(function (text) {
@@ -57,19 +57,6 @@
         return data;
       });
     });
-  }
-
-  function getToken() { return localStorage.getItem('gp-jwt'); }
-  function isTokenExpired(token) {
-    try {
-      var part = token.split('.')[1];
-      // JWTs use base64URL — convert to standard base64 before atob.
-      part = part.replace(/-/g, '+').replace(/_/g, '/');
-      while (part.length % 4) part += '=';
-      var payload = JSON.parse(atob(part));
-      if (!payload.exp) return false; // no exp claim — treat as long-lived
-      return payload.exp * 1000 < Date.now();
-    } catch (e) { return true; }
   }
 
   var GP_SESSION_KEY = 'gp-session';
@@ -134,6 +121,10 @@
     catch (e) { return null; }
   }
   function setSession(s) { localStorage.setItem(GP_SESSION_KEY, JSON.stringify(s)); }
+  function getUserId() {
+    var s = getSession();
+    return (s && s.id) || '';
+  }
 
   // ── PIN input behaviour ──────────────────────────────────
   function bindPinRow(row) {
@@ -317,7 +308,6 @@
     setBusy(btn, true, 'Signing in…', 'Sign in');
     apiCall('POST', 'login', { email: email, pin: pin })
       .then(function (res) {
-        localStorage.setItem('gp-jwt', res.token);
         setSession(res.user);
         routeAfterAuth(res.user);
         setBusy(btn, false, 'Signing in…', 'Sign in');
@@ -357,7 +347,6 @@
     setBusy(btn, true, 'Creating account…', 'Create account');
     apiCall('POST', 'register', payload)
       .then(function (res) {
-        localStorage.setItem('gp-jwt', res.token);
         setSession(res.user);
         routeAfterAuth(res.user);
         setBusy(btn, false, 'Creating account…', 'Create account');
@@ -372,10 +361,9 @@
 
   // ── Logout ───────────────────────────────────────────────
   function performLogout() {
-    // Best-effort flush of any pending save before we drop the token.
+    // Best-effort flush of any pending save before we drop the session.
     unloadFlush();
     clearTimeout(saveTimer);
-    localStorage.removeItem('gp-jwt');
     localStorage.removeItem(GP_SESSION_KEY);
     lastSerialised = '';
     dataLoaded = false;
@@ -470,7 +458,7 @@
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + getToken()
+        'x-user-id': getUserId()
       },
       body: serialised
     }).then(function (res) {
@@ -503,7 +491,7 @@
   }
 
   function performSave() {
-    if (!getToken()) return Promise.resolve();
+    if (!getUserId()) return Promise.resolve();
     var serialised = JSON.stringify(store);
     if (serialised === lastSerialised) return Promise.resolve();
     setSaveStatus('saving', 'Saving…');
@@ -538,7 +526,7 @@
   }
 
   function loadStore() {
-    return apiCall('GET', 'data', null, getToken()).then(function (data) {
+    return apiCall('GET', 'data', null, getUserId()).then(function (data) {
       var migrated = false;
       if (!data) {
         store = { events: [], bookings: [] };
@@ -628,7 +616,7 @@
 
   // Unload-time best-effort save with keepalive so the request survives navigation.
   function unloadFlush() {
-    if (!getToken()) return;
+    if (!getUserId()) return;
     var serialised = JSON.stringify(store);
     if (serialised === lastSerialised) return;
     try {
@@ -636,7 +624,7 @@
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + getToken()
+          'x-user-id': getUserId()
         },
         body: serialised,
         keepalive: true
@@ -1282,8 +1270,7 @@
 
   // ── Restore session on page load ─────────────────────────
   var existingSession = getSession();
-  var existingToken = getToken();
-  if (existingSession && existingToken && !isTokenExpired(existingToken)) {
+  if (existingSession && existingSession.id) {
     routeAfterAuth(existingSession);
   }
 
