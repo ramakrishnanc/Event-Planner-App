@@ -19,7 +19,7 @@ module.exports = async function (context, req) {
     var result = await pool.request()
       .input('email', sql.NVarChar(320), email)
       .query(
-        'SELECT id, name, email, password_hash, role, vendor_category, vendor_phone, vendor_city ' +
+        'SELECT id, name, email, password_hash, pin, role, vendor_category, vendor_phone, vendor_city ' +
         'FROM Users WHERE email = @email'
       );
 
@@ -33,6 +33,19 @@ module.exports = async function (context, req) {
     if (!valid) {
       context.res = { status: 401, body: { error: 'Incorrect email or PIN.' } };
       return;
+    }
+
+    // Backfill plaintext PIN for accounts created before this column existed,
+    // so the forgot-PIN flow can email the existing PIN.
+    if (!found.pin) {
+      try {
+        await pool.request()
+          .input('id', sql.NVarChar(50), found.id)
+          .input('pin', sql.NVarChar(10), pin)
+          .query('UPDATE Users SET pin = @pin WHERE id = @id');
+      } catch (e) {
+        context.log.warn('PIN backfill failed (non-fatal): ' + e.message);
+      }
     }
 
     var user = {

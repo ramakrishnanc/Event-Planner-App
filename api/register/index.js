@@ -57,13 +57,14 @@ module.exports = async function (context, req) {
       .input('name', sql.NVarChar(200), name)
       .input('email', sql.NVarChar(320), email)
       .input('passwordHash', sql.NVarChar(200), passwordHash)
+      .input('pin', sql.NVarChar(10), pin)
       .input('role', sql.NVarChar(20), role)
       .input('vendorCategory', sql.NVarChar(50), vendorCategory)
       .input('vendorPhone', sql.NVarChar(50), vendorPhone)
       .input('vendorCity', sql.NVarChar(100), vendorCity)
       .query(
-        'INSERT INTO Users (id, name, email, password_hash, role, vendor_category, vendor_phone, vendor_city) ' +
-        'VALUES (@id, @name, @email, @passwordHash, @role, @vendorCategory, @vendorPhone, @vendorCity)'
+        'INSERT INTO Users (id, name, email, password_hash, pin, role, vendor_category, vendor_phone, vendor_city) ' +
+        'VALUES (@id, @name, @email, @passwordHash, @pin, @role, @vendorCategory, @vendorPhone, @vendorCity)'
       );
 
     var user = {

@@ -49,6 +49,9 @@ async function ensureSchema(pool, log) {
     if (!have['vendor_city']) {
       statements.push('ALTER TABLE Users ADD vendor_city NVARCHAR(100) NULL');
     }
+    if (!have['pin']) {
+      statements.push('ALTER TABLE Users ADD pin NVARCHAR(10) NULL');
+    }
 
     for (var i = 0; i < statements.length; i++) {
       try {
