@@ -25,7 +25,7 @@ module.exports = async function (context, req) {
   var body = req.body || {};
   var name = (body.name || '').trim();
   var email = (body.email || '').trim().toLowerCase();
-  var password = body.password || '';
+  var pin = (body.pin || body.password || '').toString();
   var role = (body.role || 'user').toLowerCase();
   if (role !== 'vendor') role = 'user';
 
@@ -42,12 +42,12 @@ module.exports = async function (context, req) {
     }
   }
 
-  if (!name || !email || !password) {
-    context.res = { status: 400, body: { error: 'Name, email and password are required.' } };
+  if (!name || !email || !pin) {
+    context.res = { status: 400, body: { error: 'Name, email and PIN are required.' } };
     return;
   }
-  if (password.length < 6) {
-    context.res = { status: 400, body: { error: 'Password must be at least 6 characters.' } };
+  if (!/^\d{4}$/.test(pin)) {
+    context.res = { status: 400, body: { error: 'PIN must be exactly 4 digits.' } };
     return;
   }
 
@@ -64,7 +64,7 @@ module.exports = async function (context, req) {
       return;
     }
 
-    var passwordHash = await bcrypt.hash(password, 10);
+    var passwordHash = await bcrypt.hash(pin, 10);
     var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
     var cols = ['id', 'name', 'email', 'password_hash'];

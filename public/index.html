@@ -2,40 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#7c1d2e" />
   <title>Evento — Simplify planning, amplify joy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700;1,900&family=Cormorant+Garamond:wght@600&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700;1,900&family=Inter:wght@400;500;600;700&display=swap" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
   <!-- AUTH SCREEN -->
   <div id="authScreen" class="auth-screen">
-    <div class="auth-bg-ring auth-bg-ring-1"></div>
-    <div class="auth-bg-ring auth-bg-ring-2"></div>
-
     <div class="auth-card">
-      <span class="auth-diamond auth-diamond-tl"></span>
-      <span class="auth-diamond auth-diamond-tr"></span>
-      <span class="auth-diamond auth-diamond-bl"></span>
-      <span class="auth-diamond auth-diamond-br"></span>
-
       <div class="auth-brand">
-        <h1 class="auth-app-title brand-logo">Evento</h1>
-        <p class="auth-app-sub">Simplify planning, amplify joy</p>
-      </div>
-
-      <div class="auth-divider">
-        <span class="auth-divider-line"></span>
-        <span class="auth-divider-dot"></span>
-        <span class="auth-divider-line"></span>
+        <h1 class="brand-logo brand-logo-lg">Evento</h1>
+        <p class="brand-tagline">Simplify planning, amplify joy</p>
       </div>
 
       <div class="auth-tabs">
         <button class="auth-tab auth-tab-active" id="tabLogin" type="button">Sign In</button>
-        <span class="auth-tab-sep">|</span>
         <button class="auth-tab" id="tabRegister" type="button">Register</button>
       </div>
 
@@ -43,36 +29,42 @@
         <div class="auth-error hidden" id="loginError"></div>
         <div class="auth-field">
           <label for="loginEmail">Email</label>
-          <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email" />
+          <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email" inputmode="email" />
         </div>
         <div class="auth-field">
-          <label for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password" />
+          <label>4-digit PIN</label>
+          <div class="pin-row" data-pin="login">
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" aria-label="PIN digit 1" />
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" aria-label="PIN digit 2" />
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" aria-label="PIN digit 3" />
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" aria-label="PIN digit 4" />
+          </div>
         </div>
-        <button type="submit" class="auth-submit">Enter &rarr;</button>
+        <button type="submit" class="btn-primary btn-block">Sign in</button>
       </form>
 
       <form id="registerForm" class="auth-form hidden">
         <div class="auth-error hidden" id="registerError"></div>
+
         <div class="auth-field">
           <label>I am registering as</label>
           <div class="role-toggle" role="radiogroup" aria-label="Account type">
             <button type="button" class="role-option role-option-active" data-role="user" role="radio" aria-checked="true">
-              <span class="role-icon">&#128100;</span>
               <span class="role-label">Event Planner</span>
               <span class="role-sub">Plan my own events</span>
             </button>
             <button type="button" class="role-option" data-role="vendor" role="radio" aria-checked="false">
-              <span class="role-icon">&#127979;</span>
               <span class="role-label">Vendor</span>
               <span class="role-sub">Offer my services</span>
             </button>
           </div>
         </div>
+
         <div class="auth-field">
           <label for="regName"><span id="regNameLabel">Your Name</span></label>
           <input type="text" id="regName" placeholder="e.g. Priya Krishnan" required autocomplete="name" />
         </div>
+
         <div class="auth-field hidden" id="vendorCategoryField">
           <label for="regVendorCategory">Vendor Category</label>
           <select id="regVendorCategory">
@@ -88,79 +80,97 @@
         </div>
         <div class="auth-field hidden" id="vendorPhoneField">
           <label for="regVendorPhone">Phone</label>
-          <input type="tel" id="regVendorPhone" placeholder="Contact number" autocomplete="tel" />
+          <input type="tel" id="regVendorPhone" placeholder="Contact number" autocomplete="tel" inputmode="tel" />
         </div>
         <div class="auth-field hidden" id="vendorCityField">
           <label for="regVendorCity">City / Service Area</label>
           <input type="text" id="regVendorCity" placeholder="e.g. Hyderabad" />
         </div>
+
         <div class="auth-field">
           <label for="regEmail">Email</label>
-          <input type="email" id="regEmail" placeholder="you@example.com" required autocomplete="email" />
+          <input type="email" id="regEmail" placeholder="you@example.com" required autocomplete="email" inputmode="email" />
+        </div>
+
+        <div class="auth-field">
+          <label>Create a 4-digit PIN</label>
+          <div class="pin-row" data-pin="register">
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="new-password" aria-label="PIN digit 1" />
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="new-password" aria-label="PIN digit 2" />
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="new-password" aria-label="PIN digit 3" />
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="new-password" aria-label="PIN digit 4" />
+          </div>
         </div>
         <div class="auth-field">
-          <label for="regPassword">Password</label>
-          <input type="password" id="regPassword" placeholder="at least 6 characters" required autocomplete="new-password" minlength="6" />
+          <label>Confirm PIN</label>
+          <div class="pin-row" data-pin="confirm">
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="new-password" aria-label="Confirm PIN digit 1" />
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="new-password" aria-label="Confirm PIN digit 2" />
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="new-password" aria-label="Confirm PIN digit 3" />
+            <input type="password" class="pin-cell" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="new-password" aria-label="Confirm PIN digit 4" />
+          </div>
         </div>
-        <div class="auth-field">
-          <label for="regConfirm">Confirm Password</label>
-          <input type="password" id="regConfirm" placeholder="••••••••" required autocomplete="new-password" />
-        </div>
-        <button type="submit" class="auth-submit">Create Account &rarr;</button>
+
+        <button type="submit" class="btn-primary btn-block">Create account</button>
       </form>
 
       <p class="auth-foot-text">Simplify planning, amplify joy.</p>
     </div>
   </div>
 
-  <!-- EVENT PICKER (shown after login, before app) -->
-  <div id="eventPicker" class="event-picker hidden">
-    <div class="auth-bg-ring auth-bg-ring-1"></div>
-    <div class="auth-bg-ring auth-bg-ring-2"></div>
-    <div class="event-card">
-      <span class="auth-diamond auth-diamond-tl"></span>
-      <span class="auth-diamond auth-diamond-tr"></span>
-      <span class="auth-diamond auth-diamond-bl"></span>
-      <span class="auth-diamond auth-diamond-br"></span>
-      <div class="auth-brand">
-        <h1 class="auth-app-title brand-logo">Evento</h1>
-        <p class="auth-app-sub" id="eventPickerGreeting">Welcome</p>
-        <p class="event-picker-prompt">Choose your event</p>
+  <!-- HOME — saved events + start new (shown after a user logs in) -->
+  <div id="homeScreen" class="home-screen hidden">
+    <header class="page-header">
+      <div class="page-header-inner">
+        <span class="brand-logo brand-logo-mini">Evento</span>
+        <div class="header-actions">
+          <span id="userGreeting" class="user-greeting"></span>
+          <button id="logoutBtn" class="btn-ghost btn-sm" type="button">Sign out</button>
+        </div>
       </div>
-      <div class="auth-divider">
-        <span class="auth-divider-line"></span>
-        <span class="auth-divider-dot"></span>
-        <span class="auth-divider-line"></span>
-      </div>
-      <div class="event-grid" id="eventGrid"></div>
-      <button type="button" class="btn-ghost event-back" id="eventBackBtn">&larr; Sign out</button>
-    </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <div class="card-head">
+          <h2>Your Events</h2>
+          <span class="chip chip-total"><span id="savedEventCount">0</span></span>
+        </div>
+        <div class="saved-event-list" id="savedEventList"></div>
+        <p class="empty hidden" id="savedEventEmpty">No events yet. Start one below.</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Start something new</h2>
+        </div>
+        <div class="event-grid" id="eventGrid"></div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span>Evento &mdash; Simplify planning, amplify joy.</span>
+    </footer>
   </div>
 
   <!-- VENDOR HOME (shown after a vendor logs in) -->
   <div id="vendorHome" class="vendor-home hidden">
-    <header class="hero vendor-hero">
-      <div class="hero-inner">
-        <div class="title-block">
-          <span class="brand-logo brand-mini">Evento</span>
-          <h1 id="vendorTitle">Vendor Dashboard</h1>
-          <p class="tagline" id="vendorTagline">Events you have been booked for</p>
-        </div>
-        <div class="hero-right">
-          <div class="user-bar">
-            <span id="vendorGreeting" class="user-greeting"></span>
-            <button id="vendorLogoutBtn" class="btn-logout" type="button">Sign Out</button>
-          </div>
+    <header class="page-header vendor-header">
+      <div class="page-header-inner">
+        <span class="brand-logo brand-logo-mini">Evento</span>
+        <div class="header-actions">
+          <span id="vendorGreeting" class="user-greeting"></span>
+          <button id="vendorLogoutBtn" class="btn-ghost btn-sm" type="button">Sign out</button>
         </div>
       </div>
     </header>
     <main class="container">
       <section class="card">
         <div class="card-head">
-          <h2>My Profile</h2>
+          <h2 id="vendorTitle">Vendor Dashboard</h2>
           <span class="chip chip-total" id="vendorCategoryChip">Vendor</span>
         </div>
-        <div class="vendor-profile-grid">
+        <div class="kv-grid">
           <div><span class="label">Name</span><span class="value" id="vpName">&mdash;</span></div>
           <div><span class="label">Category</span><span class="value" id="vpCategory">&mdash;</span></div>
           <div><span class="label">Phone</span><span class="value" id="vpPhone">&mdash;</span></div>
@@ -171,12 +181,10 @@
       <section class="card">
         <div class="card-head">
           <h2>Events I'm Planning For</h2>
-          <div class="stats">
-            <span class="chip chip-ok"><span id="vendorEventCount">0</span> bookings</span>
-          </div>
+          <span class="chip chip-ok"><span id="vendorEventCount">0</span> bookings</span>
         </div>
-        <form id="vendorEventForm" class="inline-form">
-          <input type="text" id="veClient" placeholder="Client / Host name" required />
+        <form id="vendorEventForm" class="stacked-form">
+          <input type="text" id="veClient" placeholder="Client / host name" required />
           <select id="veType">
             <option value="House Warming">House Warming</option>
             <option value="Birthday">Birthday</option>
@@ -188,10 +196,10 @@
           </select>
           <input type="date" id="veDate" required />
           <input type="text" id="veVenue" placeholder="Venue (optional)" />
-          <button type="submit" class="btn-primary">Add</button>
+          <button type="submit" class="btn-primary btn-block">Add booking</button>
         </form>
         <ul class="list" id="vendorEventList"></ul>
-        <p class="empty hidden" id="vendorEventEmpty">No events booked yet. Add your first one above.</p>
+        <p class="empty hidden" id="vendorEventEmpty">No events booked yet.</p>
       </section>
     </main>
     <footer class="foot">
@@ -199,39 +207,38 @@
     </footer>
   </div>
 
-  <!-- APP SHELL (hidden until login & event chosen) -->
+  <!-- APP SHELL (planner for one event) -->
   <div id="appShell" class="hidden">
-    <header class="hero">
-      <div class="hero-inner">
-        <div class="title-block">
-          <span class="brand-logo brand-mini" id="appOm">Evento</span>
-          <h1 id="appTitle">Event Planner</h1>
-          <p class="tagline" id="appTagline">Simplify planning, amplify joy</p>
-        </div>
-        <div class="hero-right">
-          <div class="countdown-card">
-            <div class="countdown-number" id="daysToGo">--</div>
-            <div class="countdown-label">days to go</div>
-            <div class="countdown-date" id="eventDateLabel">Set the muhurtham below</div>
-          </div>
-          <div class="user-bar">
-            <span id="userGreeting" class="user-greeting"></span>
-            <button id="changeEventBtn" class="btn-logout" type="button">Change Event</button>
-            <button id="logoutBtn" class="btn-logout" type="button">Sign Out</button>
-          </div>
-        </div>
+    <header class="page-header">
+      <div class="page-header-inner">
+        <button id="backToHomeBtn" class="btn-ghost btn-sm" type="button" aria-label="Back to your events">&larr; My Events</button>
+        <span class="brand-logo brand-logo-mini" id="appOm">Evento</span>
+        <button id="logoutBtn2" class="btn-ghost btn-sm" type="button">Sign out</button>
       </div>
     </header>
 
+    <section class="event-hero">
+      <div class="event-hero-inner">
+        <div class="event-hero-text">
+          <p class="event-hero-kicker" id="appTagline">Simplify planning, amplify joy</p>
+          <h1 class="event-hero-title" id="appTitle">Event Planner</h1>
+        </div>
+        <div class="countdown-card">
+          <div class="countdown-number" id="daysToGo">--</div>
+          <div class="countdown-label">days to go</div>
+          <div class="countdown-date" id="eventDateLabel">Set the date below</div>
+        </div>
+      </div>
+    </section>
+
     <main class="container">
-      <!-- Details Section (label varies per event) -->
       <section class="card" id="muhurthamSection">
         <div class="card-head">
-          <h2 id="muhurthamSectionTitle">Muhurtham Details</h2>
-          <button class="btn-ghost" id="editMuhurthamBtn">Edit</button>
+          <h2 id="muhurthamSectionTitle">Event Details</h2>
+          <button class="btn-ghost btn-sm" id="editMuhurthamBtn">Edit</button>
         </div>
         <div class="muhurtham-view" id="muhurthamView">
-          <div class="muhurtham-grid">
+          <div class="kv-grid">
             <div data-field="date"><span class="label">Date</span><span class="value" id="mDate">&mdash;</span></div>
             <div data-field="time"><span class="label">Time</span><span class="value" id="mTime">&mdash;</span></div>
             <div data-field="nakshatra"><span class="label">Tithi / Nakshatra</span><span class="value" id="mNakshatra">&mdash;</span></div>
@@ -250,8 +257,8 @@
             <label data-field="venue">Venue<input type="text" id="fVenue" placeholder="Address" /></label>
             <label class="full" data-field="priest">Priest / Contact<input type="text" id="fPriest" placeholder="Name &amp; phone" /></label>
             <label class="full" data-field="honoree" id="fHonoreeLabel">Honoree<input type="text" id="fHonoree" placeholder="Name of the person being honoured" /></label>
-            <label class="full" data-field="theme">Theme<input type="text" id="fTheme" placeholder="e.g. Superhero, Floral, Bollywood" /></label>
-            <label class="full" data-field="notes">Notes<textarea id="fNotes" rows="2" placeholder="Things to remember"></textarea></label>
+            <label class="full" data-field="theme">Theme<input type="text" id="fTheme" placeholder="e.g. Floral, Royal, Bollywood" /></label>
+            <label class="full" data-field="notes">Notes<textarea id="fNotes" rows="3" placeholder="Things to remember"></textarea></label>
           </div>
           <div class="form-actions">
             <button type="button" class="btn-ghost" id="cancelMuhurthamBtn">Cancel</button>
@@ -260,71 +267,68 @@
         </form>
       </section>
 
-      <div class="grid-2">
-        <!-- Guests Section -->
-        <section class="card" id="guestsSection">
-          <div class="card-head">
-            <h2>Guests</h2>
-            <div class="stats">
-              <span class="chip chip-ok"><span id="invitedCount">0</span> invited</span>
-              <span class="chip chip-warn"><span id="pendingInviteCount">0</span> pending</span>
-              <span class="chip chip-total"><span id="totalHeadcount">0</span> total guests</span>
-            </div>
+      <section class="card" id="guestsSection">
+        <div class="card-head">
+          <h2>Guests</h2>
+          <div class="stats">
+            <span class="chip chip-ok"><span id="invitedCount">0</span> invited</span>
+            <span class="chip chip-warn"><span id="pendingInviteCount">0</span> pending</span>
+            <span class="chip chip-total"><span id="totalHeadcount">0</span> total</span>
           </div>
-          <form id="guestForm" class="inline-form">
-            <input type="text" id="guestName" placeholder="Guest name" required />
-            <input type="text" id="guestPhone" placeholder="Phone (optional)" />
-            <input type="number" id="guestCount" placeholder="Count" min="1" value="1" class="guest-count-input" title="Total people coming (guest + spouse + kids)" />
-            <button type="submit" class="btn-primary">Add</button>
-          </form>
-          <ul class="list" id="guestList"></ul>
-          <p class="empty hidden" id="guestEmpty">No guests yet. Add the first one above.</p>
-        </section>
-
-        <!-- Tasks Section -->
-        <section class="card" id="tasksSection">
-          <div class="card-head">
-            <h2>Pending Tasks</h2>
-            <div class="stats">
-              <span class="chip chip-ok"><span id="doneCount">0</span> done</span>
-              <span class="chip chip-warn"><span id="pendingTaskCount">0</span> pending</span>
-            </div>
+        </div>
+        <form id="guestForm" class="stacked-form">
+          <input type="text" id="guestName" placeholder="Guest name" required />
+          <div class="row-2">
+            <input type="text" id="guestPhone" placeholder="Phone (optional)" inputmode="tel" />
+            <input type="number" id="guestCount" placeholder="Count" min="1" value="1" inputmode="numeric" title="Total people coming" />
           </div>
-          <form id="taskForm" class="inline-form">
-            <input type="text" id="taskTitle" placeholder="Task description" required />
-            <input type="date" id="taskDue" />
-            <button type="submit" class="btn-primary">Add</button>
-          </form>
-          <ul class="list" id="taskList"></ul>
-          <p class="empty hidden" id="taskEmpty">No tasks yet. Add what needs doing.</p>
-        </section>
-      </div>
+          <button type="submit" class="btn-primary btn-block">Add guest</button>
+        </form>
+        <ul class="list" id="guestList"></ul>
+        <p class="empty hidden" id="guestEmpty">No guests yet.</p>
+      </section>
 
-      <!-- Expenses Section -->
+      <section class="card" id="tasksSection">
+        <div class="card-head">
+          <h2>Tasks</h2>
+          <div class="stats">
+            <span class="chip chip-ok"><span id="doneCount">0</span> done</span>
+            <span class="chip chip-warn"><span id="pendingTaskCount">0</span> pending</span>
+          </div>
+        </div>
+        <form id="taskForm" class="stacked-form">
+          <input type="text" id="taskTitle" placeholder="Task description" required />
+          <input type="date" id="taskDue" />
+          <button type="submit" class="btn-primary btn-block">Add task</button>
+        </form>
+        <ul class="list" id="taskList"></ul>
+        <p class="empty hidden" id="taskEmpty">No tasks yet.</p>
+      </section>
+
       <section class="card" id="expensesSection">
         <div class="card-head">
           <h2>Expenses</h2>
-          <div class="stats">
-            <span class="chip chip-total">Total: <span id="expenseTotal">0</span></span>
-          </div>
+          <span class="chip chip-total">Total <span id="expenseTotal">0</span></span>
         </div>
-        <form id="expenseForm" class="inline-form expense-form">
+        <form id="expenseForm" class="stacked-form">
           <input type="text" id="expDesc" placeholder="Description" required />
-          <select id="expCategory">
-            <option value="Pooja">Pooja</option>
-            <option value="Food &amp; Catering">Food &amp; Catering</option>
-            <option value="Decoration">Decoration</option>
-            <option value="Priest Dakshina">Priest Dakshina</option>
-            <option value="Photographer">Photographer</option>
-            <option value="Makeup">Makeup</option>
-            <option value="Return Gifts">Return Gifts</option>
-            <option value="Gifts">Gifts</option>
-            <option value="Travel">Travel</option>
-            <option value="Other">Other</option>
-          </select>
-          <input type="number" id="expAmount" placeholder="Amount" min="0" step="0.01" required />
+          <div class="row-2">
+            <select id="expCategory">
+              <option value="Pooja">Pooja</option>
+              <option value="Food &amp; Catering">Food &amp; Catering</option>
+              <option value="Decoration">Decoration</option>
+              <option value="Priest Dakshina">Priest Dakshina</option>
+              <option value="Photographer">Photographer</option>
+              <option value="Makeup">Makeup</option>
+              <option value="Return Gifts">Return Gifts</option>
+              <option value="Gifts">Gifts</option>
+              <option value="Travel">Travel</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="number" id="expAmount" placeholder="Amount" min="0" step="0.01" required inputmode="decimal" />
+          </div>
           <input type="date" id="expDate" />
-          <button type="submit" class="btn-primary">Add</button>
+          <button type="submit" class="btn-primary btn-block">Add expense</button>
         </form>
         <div class="expense-table-wrap">
           <table class="expense-table" id="expenseTable">

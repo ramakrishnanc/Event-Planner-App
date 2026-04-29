@@ -19,10 +19,10 @@ async function detectSchema(pool) {
 module.exports = async function (context, req) {
   var body = req.body || {};
   var email = (body.email || '').trim().toLowerCase();
-  var password = body.password || '';
+  var pin = (body.pin || body.password || '').toString();
 
-  if (!email || !password) {
-    context.res = { status: 400, body: { error: 'Email and password are required.' } };
+  if (!email || !pin) {
+    context.res = { status: 400, body: { error: 'Email and PIN are required.' } };
     return;
   }
 
@@ -46,7 +46,7 @@ module.exports = async function (context, req) {
       return;
     }
 
-    var valid = await bcrypt.compare(password, found.password_hash);
+    var valid = await bcrypt.compare(pin, found.password_hash);
     if (!valid) {
       context.res = { status: 401, body: { error: 'Incorrect email or password.' } };
       return;

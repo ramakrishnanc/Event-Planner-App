@@ -6,12 +6,35 @@
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
+  function $(id) { return document.getElementById(id); }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso + 'T00:00:00');
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function fmtShortDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso + 'T00:00:00');
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function fmtTime(t) {
+    if (!t) return '';
+    var parts = t.split(':').map(Number);
+    var d = new Date();
+    d.setHours(parts[0], parts[1], 0, 0);
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  function fmtMoney(n) {
+    var num = Number(n) || 0;
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
   // ── API helper ───────────────────────────────────────────
   function apiCall(method, path, body, token) {
-    var opts = {
-      method: method,
-      headers: { 'Content-Type': 'application/json' }
-    };
+    var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
     if (token) opts.headers['Authorization'] = 'Bearer ' + token;
     if (body !== undefined && body !== null) opts.body = JSON.stringify(body);
     return fetch('/api/' + path, opts).then(function (res) {
@@ -29,141 +52,150 @@
     });
   }
 
-  function getToken() {
-    return localStorage.getItem('gp-jwt');
-  }
-
+  function getToken() { return localStorage.getItem('gp-jwt'); }
   function isTokenExpired(token) {
     try {
       var payload = JSON.parse(atob(token.split('.')[1]));
       return payload.exp * 1000 < Date.now();
-    } catch (e) {
-      return true;
-    }
+    } catch (e) { return true; }
   }
 
-  // ── Auth ─────────────────────────────────────────────────
   var GP_SESSION_KEY = 'gp-session';
-  var GP_EVENT_KEY = 'gp-event';
   var GP_VENDOR_EVENTS_KEY = 'gp-vendor-events';
-
-  var VENDOR_CATEGORY_LABELS = {
-    caterer: 'Caterer',
-    photographer: 'Photographer',
-    priest: 'Priest',
-    decorator: 'Decorator',
-    makeup: 'Makeup Artist',
-    venue: 'Venue',
-    entertainment: 'Entertainment',
-    other: 'Other'
-  };
 
   var ALL_FIELDS = ['date', 'time', 'nakshatra', 'venue', 'priest', 'honoree', 'theme', 'notes'];
 
   var EVENT_TYPES = [
-    {
-      id: 'gruhapravesham', label: 'House Warming', icon: '\uD83C\uDFE0',
+    { id: 'gruhapravesham', label: 'House Warming', icon: '🏠',
       title: 'Gruhapravesham Planner', tagline: 'Plan the housewarming with calm and clarity',
-      themeClass: 'theme-gruhapravesham',
-      sectionTitle: 'Muhurtham Details',
-      countdownPlaceholder: 'Set the muhurtham below',
+      themeClass: 'theme-marriage', sectionTitle: 'Muhurtham Details', countdownPlaceholder: 'Set the muhurtham below',
       fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'notes'],
-      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Return Gifts', 'Gifts', 'Travel', 'Other']
-    },
-    {
-      id: 'birthday', label: 'Birthday', icon: '\uD83C\uDF82',
+      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Return Gifts', 'Gifts', 'Travel', 'Other'] },
+    { id: 'birthday', label: 'Birthday', icon: '🎂',
       title: 'Birthday Planner', tagline: 'Plan a joyful celebration',
-      themeClass: 'theme-birthday',
-      sectionTitle: 'Birthday Details',
-      countdownPlaceholder: 'Set the date below',
-      fields: ['date', 'time', 'venue', 'honoree', 'theme', 'notes'],
-      honoreeLabel: 'Birthday Person',
-      categories: ['Cake', 'Food & Catering', 'Decoration', 'Venue', 'Photographer', 'Makeup', 'Entertainment', 'Gifts', 'Return Gifts', 'Other']
-    },
-    {
-      id: 'marriage', label: 'Marriage', icon: '\uD83D\uDC8D',
+      themeClass: 'theme-birthday', sectionTitle: 'Birthday Details', countdownPlaceholder: 'Set the date below',
+      fields: ['date', 'time', 'venue', 'honoree', 'theme', 'notes'], honoreeLabel: 'Birthday Person',
+      categories: ['Cake', 'Food & Catering', 'Decoration', 'Venue', 'Photographer', 'Makeup', 'Entertainment', 'Gifts', 'Return Gifts', 'Other'] },
+    { id: 'marriage', label: 'Marriage', icon: '💍',
       title: 'Marriage Planner', tagline: 'Plan the auspicious union with grace',
-      themeClass: 'theme-marriage',
-      sectionTitle: 'Wedding Details',
-      countdownPlaceholder: 'Set the muhurtham below',
+      themeClass: 'theme-marriage', sectionTitle: 'Wedding Details', countdownPlaceholder: 'Set the muhurtham below',
       fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'notes'],
-      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Attire', 'Jewelry', 'Venue', 'Return Gifts', 'Gifts', 'Travel', 'Other']
-    },
-    {
-      id: 'engagement', label: 'Engagement', icon: '\uD83D\uDC8D',
+      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Attire', 'Jewelry', 'Venue', 'Return Gifts', 'Gifts', 'Travel', 'Other'] },
+    { id: 'engagement', label: 'Engagement', icon: '💍',
       title: 'Engagement Planner', tagline: 'Plan the betrothal with grace',
-      themeClass: 'theme-engagement',
-      sectionTitle: 'Engagement Details',
-      countdownPlaceholder: 'Set the muhurtham below',
-      fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'honoree', 'theme', 'notes'],
-      honoreeLabel: 'Couple',
-      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Attire', 'Jewelry', 'Venue', 'Rings', 'Return Gifts', 'Gifts', 'Travel', 'Other']
-    },
-    {
-      id: 'puja', label: 'Puja', icon: '\u0950',
+      themeClass: 'theme-engagement', sectionTitle: 'Engagement Details', countdownPlaceholder: 'Set the muhurtham below',
+      fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'honoree', 'theme', 'notes'], honoreeLabel: 'Couple',
+      categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Attire', 'Jewelry', 'Venue', 'Rings', 'Return Gifts', 'Gifts', 'Travel', 'Other'] },
+    { id: 'puja', label: 'Puja', icon: 'ॐ',
       title: 'Puja Planner', tagline: 'Plan the ritual with devotion',
-      themeClass: 'theme-puja',
-      sectionTitle: 'Puja Details',
-      countdownPlaceholder: 'Set the muhurtham below',
+      themeClass: 'theme-puja', sectionTitle: 'Puja Details', countdownPlaceholder: 'Set the muhurtham below',
       fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'notes'],
-      categories: ['Pooja Items', 'Food & Prasadam', 'Priest Dakshina', 'Decoration', 'Flowers', 'Other']
-    },
-    {
-      id: 'retirement', label: 'Retirement', icon: '\uD83C\uDF89',
+      categories: ['Pooja Items', 'Food & Prasadam', 'Priest Dakshina', 'Decoration', 'Flowers', 'Other'] },
+    { id: 'retirement', label: 'Retirement', icon: '🎉',
       title: 'Retirement Planner', tagline: 'Honour a life of service',
-      themeClass: 'theme-retirement',
-      sectionTitle: 'Retirement Details',
-      countdownPlaceholder: 'Set the date below',
-      fields: ['date', 'time', 'venue', 'honoree', 'notes'],
-      honoreeLabel: 'Honoree',
-      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Makeup', 'Mementos', 'Gifts', 'Other']
-    },
-    {
-      id: 'other', label: 'Other', icon: '\u2728',
+      themeClass: 'theme-retirement', sectionTitle: 'Retirement Details', countdownPlaceholder: 'Set the date below',
+      fields: ['date', 'time', 'venue', 'honoree', 'notes'], honoreeLabel: 'Honoree',
+      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Makeup', 'Mementos', 'Gifts', 'Other'] },
+    { id: 'other', label: 'Other', icon: '✨',
       title: 'Event Planner', tagline: 'Plan your special occasion',
-      themeClass: 'theme-other',
-      sectionTitle: 'Event Details',
-      countdownPlaceholder: 'Set the date below',
+      themeClass: 'theme-other', sectionTitle: 'Event Details', countdownPlaceholder: 'Set the date below',
       fields: ['date', 'time', 'venue', 'notes'],
-      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Makeup', 'Gifts', 'Other']
-    }
+      categories: ['Food & Catering', 'Venue', 'Decoration', 'Photographer', 'Makeup', 'Gifts', 'Other'] }
   ];
 
-  var currentEvent = null;
-
-  function getEvent() {
-    try { return JSON.parse(localStorage.getItem(GP_EVENT_KEY)); }
-    catch (e) { return null; }
+  function findType(id) {
+    for (var i = 0; i < EVENT_TYPES.length; i++) {
+      if (EVENT_TYPES[i].id === id) return EVENT_TYPES[i];
+    }
+    return EVENT_TYPES[EVENT_TYPES.length - 1];
   }
 
+  var VENDOR_CATEGORY_LABELS = {
+    caterer: 'Caterer', photographer: 'Photographer', priest: 'Priest',
+    decorator: 'Decorator', makeup: 'Makeup Artist', venue: 'Venue',
+    entertainment: 'Entertainment', other: 'Other'
+  };
+
+  // ── Session helpers ──────────────────────────────────────
   function getSession() {
     try { return JSON.parse(localStorage.getItem(GP_SESSION_KEY)); }
     catch (e) { return null; }
   }
+  function setSession(s) { localStorage.setItem(GP_SESSION_KEY, JSON.stringify(s)); }
 
+  // ── PIN input behaviour ──────────────────────────────────
+  function bindPinRow(row) {
+    var cells = row.querySelectorAll('.pin-cell');
+    for (var i = 0; i < cells.length; i++) {
+      (function (cell, idx) {
+        cell.addEventListener('input', function (e) {
+          // Strip non-digits
+          var v = (cell.value || '').replace(/\D/g, '').slice(0, 1);
+          cell.value = v;
+          if (v && cells[idx + 1]) cells[idx + 1].focus();
+        });
+        cell.addEventListener('keydown', function (e) {
+          if (e.key === 'Backspace' && !cell.value && cells[idx - 1]) {
+            cells[idx - 1].focus();
+            cells[idx - 1].value = '';
+            e.preventDefault();
+          } else if (e.key === 'ArrowLeft' && cells[idx - 1]) {
+            cells[idx - 1].focus();
+          } else if (e.key === 'ArrowRight' && cells[idx + 1]) {
+            cells[idx + 1].focus();
+          }
+        });
+        cell.addEventListener('paste', function (e) {
+          var text = (e.clipboardData || window.clipboardData).getData('text') || '';
+          var digits = text.replace(/\D/g, '').slice(0, cells.length);
+          if (!digits) return;
+          e.preventDefault();
+          for (var j = 0; j < cells.length; j++) {
+            cells[j].value = digits[j] || '';
+          }
+          var lastFilled = Math.min(digits.length, cells.length) - 1;
+          if (cells[lastFilled + 1]) cells[lastFilled + 1].focus();
+          else cells[lastFilled].focus();
+        });
+        cell.addEventListener('focus', function () { cell.select(); });
+      })(cells[i], i);
+    }
+  }
+
+  function readPin(row) {
+    var cells = row.querySelectorAll('.pin-cell');
+    var pin = '';
+    for (var i = 0; i < cells.length; i++) pin += cells[i].value || '';
+    return pin;
+  }
+  function clearPin(row) {
+    var cells = row.querySelectorAll('.pin-cell');
+    for (var i = 0; i < cells.length; i++) cells[i].value = '';
+  }
+
+  // ── Auth UI ──────────────────────────────────────────────
   function setAuthError(id, msg) {
-    var el = document.getElementById(id);
+    var el = $(id);
     el.textContent = msg;
     el.classList.remove('hidden');
   }
-
-  function clearAuthError(id) {
-    document.getElementById(id).classList.add('hidden');
+  function clearAuthError(id) { $(id).classList.add('hidden'); }
+  function setBusy(btn, busy, busyText, idleText) {
+    btn.disabled = busy;
+    btn.textContent = busy ? busyText : idleText;
   }
 
-  function setSubmitState(form, loading) {
-    var btn = form.querySelector('.auth-submit');
-    btn.disabled = loading;
-    btn.textContent = loading
-      ? (form.id === 'loginForm' ? 'Entering…' : 'Creating account…')
-      : (form.id === 'loginForm' ? 'Enter \u2192' : 'Create Account \u2192');
-  }
+  var loginPinRow = document.querySelector('.pin-row[data-pin="login"]');
+  var registerPinRow = document.querySelector('.pin-row[data-pin="register"]');
+  var confirmPinRow = document.querySelector('.pin-row[data-pin="confirm"]');
+  bindPinRow(loginPinRow);
+  bindPinRow(registerPinRow);
+  bindPinRow(confirmPinRow);
 
-  // Auth tab switching
-  var tabLogin = document.getElementById('tabLogin');
-  var tabRegister = document.getElementById('tabRegister');
-  var loginFormEl = document.getElementById('loginForm');
-  var registerFormEl = document.getElementById('registerForm');
+  var tabLogin = $('tabLogin');
+  var tabRegister = $('tabRegister');
+  var loginFormEl = $('loginForm');
+  var registerFormEl = $('registerForm');
 
   tabLogin.addEventListener('click', function () {
     tabLogin.classList.add('auth-tab-active');
@@ -172,7 +204,6 @@
     registerFormEl.classList.add('hidden');
     clearAuthError('loginError');
   });
-
   tabRegister.addEventListener('click', function () {
     tabRegister.classList.add('auth-tab-active');
     tabLogin.classList.remove('auth-tab-active');
@@ -181,7 +212,7 @@
     clearAuthError('registerError');
   });
 
-  // Role toggle (User vs Vendor)
+  // Role toggle
   var selectedRole = 'user';
   var roleOptions = registerFormEl.querySelectorAll('.role-option');
   function applyRoleSelection(role) {
@@ -193,12 +224,11 @@
       opt.setAttribute('aria-checked', active ? 'true' : 'false');
     }
     var isVendor = role === 'vendor';
-    document.getElementById('vendorCategoryField').classList.toggle('hidden', !isVendor);
-    document.getElementById('vendorPhoneField').classList.toggle('hidden', !isVendor);
-    document.getElementById('vendorCityField').classList.toggle('hidden', !isVendor);
-    document.getElementById('regNameLabel').textContent = isVendor ? 'Business / Your Name' : 'Your Name';
-    var nameInput = document.getElementById('regName');
-    nameInput.placeholder = isVendor ? 'e.g. Lakshmi Caterers' : 'e.g. Priya Krishnan';
+    $('vendorCategoryField').classList.toggle('hidden', !isVendor);
+    $('vendorPhoneField').classList.toggle('hidden', !isVendor);
+    $('vendorCityField').classList.toggle('hidden', !isVendor);
+    $('regNameLabel').textContent = isVendor ? 'Business / Your Name' : 'Your Name';
+    $('regName').placeholder = isVendor ? 'e.g. Lakshmi Caterers' : 'e.g. Priya Krishnan';
   }
   for (var i = 0; i < roleOptions.length; i++) {
     (function (opt) {
@@ -209,98 +239,249 @@
   }
 
   function routeAfterAuth(user) {
-    if (user && user.role === 'vendor') {
-      showVendorHome(user);
-    } else {
-      showEventPicker(user);
-    }
+    if (user && user.role === 'vendor') showVendorHome(user);
+    else showHome(user);
   }
 
   loginFormEl.addEventListener('submit', function (e) {
     e.preventDefault();
     clearAuthError('loginError');
-    var email = document.getElementById('loginEmail').value.trim();
-    var password = document.getElementById('loginPassword').value;
-    setSubmitState(loginFormEl, true);
-    apiCall('POST', 'login', { email: email, password: password })
+    var email = $('loginEmail').value.trim();
+    var pin = readPin(loginPinRow);
+    if (!/^\d{4}$/.test(pin)) {
+      setAuthError('loginError', 'Enter your 4-digit PIN.');
+      return;
+    }
+    var btn = loginFormEl.querySelector('button[type="submit"]');
+    setBusy(btn, true, 'Signing in…', 'Sign in');
+    apiCall('POST', 'login', { email: email, pin: pin })
       .then(function (res) {
         localStorage.setItem('gp-jwt', res.token);
-        localStorage.setItem(GP_SESSION_KEY, JSON.stringify(res.user));
+        setSession(res.user);
         routeAfterAuth(res.user);
-        setSubmitState(loginFormEl, false);
+        setBusy(btn, false, 'Signing in…', 'Sign in');
+        clearPin(loginPinRow);
       })
       .catch(function (err) {
         setAuthError('loginError', err.message);
-        setSubmitState(loginFormEl, false);
+        setBusy(btn, false, 'Signing in…', 'Sign in');
       });
   });
 
   registerFormEl.addEventListener('submit', function (e) {
     e.preventDefault();
     clearAuthError('registerError');
-    var name = document.getElementById('regName').value.trim();
-    var email = document.getElementById('regEmail').value.trim();
-    var password = document.getElementById('regPassword').value;
-    var confirm = document.getElementById('regConfirm').value;
+    var name = $('regName').value.trim();
+    var email = $('regEmail').value.trim();
+    var pin = readPin(registerPinRow);
+    var pinConfirm = readPin(confirmPinRow);
 
-    if (password !== confirm) {
-      setAuthError('registerError', 'Passwords do not match.');
+    if (!/^\d{4}$/.test(pin)) {
+      setAuthError('registerError', 'PIN must be exactly 4 digits.');
+      return;
+    }
+    if (pin !== pinConfirm) {
+      setAuthError('registerError', 'PINs do not match.');
       return;
     }
 
-    var payload = { name: name, email: email, password: password, role: selectedRole };
+    var payload = { name: name, email: email, pin: pin, role: selectedRole };
     if (selectedRole === 'vendor') {
-      payload.vendorCategory = document.getElementById('regVendorCategory').value;
-      payload.vendorPhone = document.getElementById('regVendorPhone').value.trim();
-      payload.vendorCity = document.getElementById('regVendorCity').value.trim();
+      payload.vendorCategory = $('regVendorCategory').value;
+      payload.vendorPhone = $('regVendorPhone').value.trim();
+      payload.vendorCity = $('regVendorCity').value.trim();
     }
 
-    setSubmitState(registerFormEl, true);
+    var btn = registerFormEl.querySelector('button[type="submit"]');
+    setBusy(btn, true, 'Creating account…', 'Create account');
     apiCall('POST', 'register', payload)
       .then(function (res) {
         localStorage.setItem('gp-jwt', res.token);
-        localStorage.setItem(GP_SESSION_KEY, JSON.stringify(res.user));
+        setSession(res.user);
         routeAfterAuth(res.user);
-        setSubmitState(registerFormEl, false);
+        setBusy(btn, false, 'Creating account…', 'Create account');
+        clearPin(registerPinRow);
+        clearPin(confirmPinRow);
       })
       .catch(function (err) {
         setAuthError('registerError', err.message);
-        setSubmitState(registerFormEl, false);
+        setBusy(btn, false, 'Creating account…', 'Create account');
       });
   });
 
+  // ── Logout ───────────────────────────────────────────────
   function performLogout() {
     localStorage.removeItem('gp-jwt');
     localStorage.removeItem(GP_SESSION_KEY);
-    localStorage.removeItem(GP_EVENT_KEY);
-    currentEvent = null;
     var allThemes = EVENT_TYPES.map(function (e) { return e.themeClass; });
     document.body.classList.remove.apply(document.body.classList, allThemes);
-    document.body.classList.remove('theme-vendor');
-    document.getElementById('appShell').classList.add('hidden');
-    document.getElementById('eventPicker').classList.add('hidden');
-    document.getElementById('vendorHome').classList.add('hidden');
-    document.getElementById('authScreen').classList.remove('hidden');
+    $('appShell').classList.add('hidden');
+    $('homeScreen').classList.add('hidden');
+    $('vendorHome').classList.add('hidden');
+    $('authScreen').classList.remove('hidden');
     loginFormEl.reset();
     registerFormEl.reset();
+    clearPin(loginPinRow);
+    clearPin(registerPinRow);
+    clearPin(confirmPinRow);
     applyRoleSelection('user');
     clearAuthError('loginError');
   }
+  $('logoutBtn').addEventListener('click', performLogout);
+  $('logoutBtn2').addEventListener('click', performLogout);
+  $('vendorLogoutBtn').addEventListener('click', performLogout);
 
-  document.getElementById('logoutBtn').addEventListener('click', performLogout);
-  document.getElementById('vendorLogoutBtn').addEventListener('click', performLogout);
+  // ── Saved-events data model ──────────────────────────────
+  // Server stores: { events: [ { id, typeId, name, muhurtham, guests, tasks, expenses, createdAt, updatedAt } ] }
+  // Migration: legacy shape with top-level muhurtham/guests/tasks/expenses → wrap as events[0].
+  function defaultEventState(typeId) {
+    return {
+      id: 'e_' + uid(),
+      typeId: typeId,
+      name: '',
+      muhurtham: { date: '', time: '', nakshatra: '', venue: '', priest: '', honoree: '', theme: '', notes: '' },
+      guests: [],
+      tasks: [],
+      expenses: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  }
 
-  document.getElementById('eventBackBtn').addEventListener('click', function () {
-    document.getElementById('logoutBtn').click();
-  });
+  var store = { events: [] };
+  var activeEventId = null;
+  var saveTimer;
+  var dataLoaded = false;
 
-  document.getElementById('changeEventBtn').addEventListener('click', function () {
-    var session = getSession();
-    if (session) showEventPicker(session);
-  });
+  function loadStore() {
+    return apiCall('GET', 'data', null, getToken()).then(function (data) {
+      if (!data) {
+        store = { events: [] };
+      } else if (data.events && Array.isArray(data.events)) {
+        store = data;
+        if (!store.events) store.events = [];
+      } else if (data.muhurtham || data.guests || data.tasks || data.expenses) {
+        // Legacy single-event blob — migrate.
+        var legacy = defaultEventState('gruhapravesham');
+        legacy.muhurtham = data.muhurtham || legacy.muhurtham;
+        legacy.guests = data.guests || [];
+        legacy.tasks = data.tasks || [];
+        legacy.expenses = data.expenses || [];
+        store = { events: [legacy] };
+        scheduleSave();
+      } else {
+        store = { events: [] };
+      }
+      dataLoaded = true;
+    }).catch(function () {
+      store = { events: [] };
+      dataLoaded = true;
+    });
+  }
 
-  function renderEventTiles(session) {
-    var grid = document.getElementById('eventGrid');
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      apiCall('PUT', 'data', store, getToken()).catch(function () {});
+    }, 700);
+  }
+
+  function findEvent(id) {
+    for (var i = 0; i < store.events.length; i++) {
+      if (store.events[i].id === id) return store.events[i];
+    }
+    return null;
+  }
+
+  function defaultEventName(ev) {
+    var t = findType(ev.typeId);
+    if (ev.muhurtham && ev.muhurtham.honoree) return ev.muhurtham.honoree + '’s ' + t.label;
+    return t.label;
+  }
+
+  // ── Home screen (saved events + new) ─────────────────────
+  function renderSavedEvents() {
+    var list = $('savedEventList');
+    var empty = $('savedEventEmpty');
+    list.innerHTML = '';
+    var sorted = store.events.slice().sort(function (a, b) {
+      var ad = (a.muhurtham && a.muhurtham.date) || '9999-12-31';
+      var bd = (b.muhurtham && b.muhurtham.date) || '9999-12-31';
+      return ad.localeCompare(bd);
+    });
+    sorted.forEach(function (ev) {
+      var t = findType(ev.typeId);
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'saved-event-card';
+
+      var icon = document.createElement('span');
+      icon.className = 'saved-event-icon';
+      icon.textContent = t.icon;
+
+      var body = document.createElement('div');
+      body.className = 'saved-event-body';
+      var title = document.createElement('span');
+      title.className = 'saved-event-title';
+      title.textContent = ev.name || defaultEventName(ev);
+      var meta = document.createElement('span');
+      meta.className = 'saved-event-meta';
+      var metaParts = [t.label];
+      if (ev.muhurtham && ev.muhurtham.date) metaParts.push(fmtShortDate(ev.muhurtham.date));
+      if (ev.muhurtham && ev.muhurtham.venue) metaParts.push(ev.muhurtham.venue);
+      meta.textContent = metaParts.join(' · ');
+      body.appendChild(title);
+      body.appendChild(meta);
+
+      var badge = document.createElement('span');
+      badge.className = 'saved-event-badge';
+      var date = ev.muhurtham && ev.muhurtham.date;
+      if (date) {
+        var d = new Date(date + 'T00:00:00');
+        var now = new Date();
+        var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        var diff = Math.round((d - today) / 86400000);
+        if (diff > 0) {
+          badge.textContent = diff + 'd to go';
+          if (diff <= 7) badge.classList.add('soon');
+        } else if (diff === 0) {
+          badge.textContent = 'Today';
+          badge.classList.add('today');
+        } else {
+          badge.textContent = Math.abs(diff) + 'd ago';
+          badge.classList.add('past');
+        }
+      } else {
+        badge.textContent = 'Draft';
+      }
+
+      var del = document.createElement('span');
+      del.className = 'icon-btn';
+      del.title = 'Delete event';
+      del.textContent = '✕';
+      del.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!confirm('Delete this event and all its data?')) return;
+        store.events = store.events.filter(function (x) { return x.id !== ev.id; });
+        scheduleSave();
+        renderSavedEvents();
+      });
+
+      card.appendChild(icon);
+      card.appendChild(body);
+      card.appendChild(badge);
+      card.appendChild(del);
+      card.addEventListener('click', function () {
+        openEvent(ev.id);
+      });
+      list.appendChild(card);
+    });
+    $('savedEventCount').textContent = store.events.length;
+    empty.classList.toggle('hidden', store.events.length > 0);
+  }
+
+  function renderEventTiles() {
+    var grid = $('eventGrid');
     grid.innerHTML = '';
     EVENT_TYPES.forEach(function (ev) {
       var btn = document.createElement('button');
@@ -315,24 +496,365 @@
       btn.appendChild(icon);
       btn.appendChild(lbl);
       btn.addEventListener('click', function () {
-        localStorage.setItem(GP_EVENT_KEY, JSON.stringify(ev));
-        showApp(session, ev);
+        var newEv = defaultEventState(ev.id);
+        store.events.push(newEv);
+        scheduleSave();
+        openEvent(newEv.id);
       });
       grid.appendChild(btn);
     });
   }
 
-  function showEventPicker(session) {
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('appShell').classList.add('hidden');
-    document.getElementById('vendorHome').classList.add('hidden');
-    document.getElementById('eventPicker').classList.remove('hidden');
-    document.getElementById('eventPickerGreeting').textContent =
-      'Hi ' + session.name.split(' ')[0] + ' \u2014 what are we planning?';
-    renderEventTiles(session);
+  function showHome(session) {
+    $('authScreen').classList.add('hidden');
+    $('appShell').classList.add('hidden');
+    $('vendorHome').classList.add('hidden');
+    $('homeScreen').classList.remove('hidden');
+    var allThemes = EVENT_TYPES.map(function (e) { return e.themeClass; });
+    document.body.classList.remove.apply(document.body.classList, allThemes);
+
+    $('userGreeting').textContent = 'Hi ' + (session.name || '').split(' ')[0];
+
+    var ensureLoaded = dataLoaded ? Promise.resolve() : loadStore();
+    ensureLoaded.then(function () {
+      renderSavedEvents();
+      renderEventTiles();
+    });
   }
 
-  // \u2500\u2500 Vendor Home \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  $('backToHomeBtn').addEventListener('click', function () {
+    var session = getSession();
+    if (session) showHome(session);
+  });
+
+  // ── Planner (single event) ───────────────────────────────
+  var currentEvent = null; // event-type config
+  var currentEventRecord = null;
+
+  function applyEventTheme(typeCfg) {
+    var allThemes = EVENT_TYPES.map(function (e) { return e.themeClass; });
+    document.body.classList.remove.apply(document.body.classList, allThemes);
+    document.body.classList.add(typeCfg.themeClass);
+
+    $('appTitle').textContent = typeCfg.title;
+    $('appTagline').textContent = typeCfg.tagline;
+    $('muhurthamSectionTitle').textContent = typeCfg.sectionTitle;
+
+    ALL_FIELDS.forEach(function (f) {
+      var visible = typeCfg.fields.indexOf(f) >= 0;
+      var nodes = document.querySelectorAll('[data-field="' + f + '"]');
+      for (var i = 0; i < nodes.length; i++) {
+        nodes[i].classList.toggle('hidden', !visible);
+      }
+    });
+
+    if (typeCfg.honoreeLabel) {
+      var hLabel = $('mHonoreeLabel');
+      var fLabel = $('fHonoreeLabel');
+      if (hLabel) hLabel.textContent = typeCfg.honoreeLabel;
+      if (fLabel) fLabel.childNodes[0].nodeValue = typeCfg.honoreeLabel;
+    } else {
+      $('mHonoreeLabel').textContent = 'Honoree';
+      $('fHonoreeLabel').childNodes[0].nodeValue = 'Honoree';
+    }
+
+    var sel = $('expCategory');
+    sel.innerHTML = '';
+    typeCfg.categories.forEach(function (cat) {
+      var opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      sel.appendChild(opt);
+    });
+  }
+
+  function openEvent(id) {
+    var ev = findEvent(id);
+    if (!ev) return;
+    currentEventRecord = ev;
+    activeEventId = id;
+    currentEvent = findType(ev.typeId);
+
+    $('authScreen').classList.add('hidden');
+    $('homeScreen').classList.add('hidden');
+    $('vendorHome').classList.add('hidden');
+    $('appShell').classList.remove('hidden');
+
+    applyEventTheme(currentEvent);
+    renderAll();
+  }
+
+  // ── Planner sections ─────────────────────────────────────
+  function renderAll() {
+    renderMuhurtham();
+    renderCountdown();
+    renderGuests();
+    renderTasks();
+    renderExpenses();
+  }
+
+  function renderCountdown() {
+    var el = $('daysToGo');
+    var label = $('eventDateLabel');
+    var ev = currentEventRecord;
+    if (!ev) return;
+    var date = ev.muhurtham.date;
+    var time = ev.muhurtham.time;
+    if (!date) {
+      el.textContent = '--';
+      label.textContent = (currentEvent && currentEvent.countdownPlaceholder) || 'Set the date below';
+      document.querySelector('.countdown-label').textContent = 'days to go';
+      return;
+    }
+    var target = new Date(date + 'T' + (time || '00:00') + ':00');
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var eventDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+    var diffDays = Math.round((eventDay - today) / 86400000);
+    if (diffDays > 0) {
+      el.textContent = diffDays;
+      document.querySelector('.countdown-label').textContent = diffDays === 1 ? 'day to go' : 'days to go';
+    } else if (diffDays === 0) {
+      el.textContent = '0';
+      document.querySelector('.countdown-label').textContent = 'today!';
+    } else {
+      el.textContent = Math.abs(diffDays);
+      document.querySelector('.countdown-label').textContent = 'days ago';
+    }
+    label.textContent = fmtDate(date) + (time ? ' · ' + fmtTime(time) : '');
+  }
+
+  function renderMuhurtham() {
+    var m = currentEventRecord.muhurtham;
+    $('mDate').textContent = m.date ? fmtDate(m.date) : '—';
+    $('mTime').textContent = m.time ? fmtTime(m.time) : '—';
+    $('mNakshatra').textContent = m.nakshatra || '—';
+    $('mVenue').textContent = m.venue || '—';
+    $('mPriest').textContent = m.priest || '—';
+    $('mHonoree').textContent = m.honoree || '—';
+    $('mTheme').textContent = m.theme || '—';
+    $('mNotes').textContent = m.notes || '—';
+  }
+
+  function openMuhurthamForm() {
+    var m = currentEventRecord.muhurtham;
+    $('fDate').value = m.date || '';
+    $('fTime').value = m.time || '';
+    $('fNakshatra').value = m.nakshatra || '';
+    $('fVenue').value = m.venue || '';
+    $('fPriest').value = m.priest || '';
+    $('fHonoree').value = m.honoree || '';
+    $('fTheme').value = m.theme || '';
+    $('fNotes').value = m.notes || '';
+    $('muhurthamView').classList.add('hidden');
+    $('muhurthamForm').classList.remove('hidden');
+  }
+  function closeMuhurthamForm() {
+    $('muhurthamForm').classList.add('hidden');
+    $('muhurthamView').classList.remove('hidden');
+  }
+
+  $('editMuhurthamBtn').addEventListener('click', openMuhurthamForm);
+  $('cancelMuhurthamBtn').addEventListener('click', closeMuhurthamForm);
+  $('muhurthamForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    currentEventRecord.muhurtham = {
+      date: $('fDate').value,
+      time: $('fTime').value,
+      nakshatra: $('fNakshatra').value.trim(),
+      venue: $('fVenue').value.trim(),
+      priest: $('fPriest').value.trim(),
+      honoree: $('fHonoree').value.trim(),
+      theme: $('fTheme').value.trim(),
+      notes: $('fNotes').value.trim()
+    };
+    currentEventRecord.updatedAt = new Date().toISOString();
+    scheduleSave();
+    renderMuhurtham();
+    renderCountdown();
+    closeMuhurthamForm();
+  });
+
+  // Guests
+  function renderGuests() {
+    var list = $('guestList');
+    var empty = $('guestEmpty');
+    list.innerHTML = '';
+    var invited = 0, total = 0;
+    currentEventRecord.guests.forEach(function (g) {
+      var c = g.count || 1;
+      if (g.invited) invited++;
+      total += c;
+      var li = document.createElement('li');
+      li.className = 'list-item';
+      var main = document.createElement('div'); main.className = 'main';
+      var title = document.createElement('span'); title.className = 'title'; title.textContent = g.name;
+      main.appendChild(title);
+      var meta = document.createElement('span'); meta.className = 'meta';
+      var parts = [];
+      if (g.phone) parts.push(g.phone);
+      parts.push(c === 1 ? '1 person' : c + ' people');
+      meta.textContent = parts.join(' · ');
+      main.appendChild(meta);
+      var tag = document.createElement('span');
+      tag.className = 'invited-tag ' + (g.invited ? 'yes' : 'no');
+      tag.textContent = g.invited ? 'Invited' : 'Pending';
+      var toggle = document.createElement('button');
+      toggle.className = 'toggle-btn'; toggle.type = 'button';
+      toggle.textContent = g.invited ? 'Mark pending' : 'Mark invited';
+      toggle.addEventListener('click', function () {
+        g.invited = !g.invited; scheduleSave(); renderGuests();
+      });
+      var del = document.createElement('button');
+      del.className = 'icon-btn'; del.type = 'button'; del.title = 'Remove'; del.textContent = '✕';
+      del.addEventListener('click', function () {
+        currentEventRecord.guests = currentEventRecord.guests.filter(function (x) { return x.id !== g.id; });
+        scheduleSave(); renderGuests();
+      });
+      li.appendChild(main); li.appendChild(tag); li.appendChild(toggle); li.appendChild(del);
+      list.appendChild(li);
+    });
+    $('invitedCount').textContent = invited;
+    $('pendingInviteCount').textContent = currentEventRecord.guests.length - invited;
+    $('totalHeadcount').textContent = total;
+    empty.classList.toggle('hidden', currentEventRecord.guests.length > 0);
+  }
+
+  $('guestForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('guestName').value.trim();
+    var phone = $('guestPhone').value.trim();
+    var count = Math.max(1, parseInt($('guestCount').value, 10) || 1);
+    if (!name) return;
+    currentEventRecord.guests.push({ id: uid(), name: name, phone: phone, count: count, invited: false });
+    currentEventRecord.updatedAt = new Date().toISOString();
+    scheduleSave();
+    $('guestName').value = ''; $('guestPhone').value = ''; $('guestCount').value = '1';
+    renderGuests();
+  });
+
+  // Tasks
+  function dueClass(due) {
+    if (!due) return '';
+    var d = new Date(due + 'T00:00:00');
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var diff = Math.round((d - today) / 86400000);
+    if (diff < 0) return 'overdue';
+    if (diff <= 3) return 'soon';
+    return '';
+  }
+
+  function renderTasks() {
+    var list = $('taskList');
+    var empty = $('taskEmpty');
+    list.innerHTML = '';
+    var sorted = currentEventRecord.tasks.slice().sort(function (a, b) {
+      if (a.done !== b.done) return a.done ? 1 : -1;
+      return ((a.due || '9999-12-31').localeCompare(b.due || '9999-12-31'));
+    });
+    var done = 0;
+    sorted.forEach(function (t) {
+      if (t.done) done++;
+      var li = document.createElement('li');
+      li.className = 'list-item' + (t.done ? ' done' : '');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.className = 'task-check'; cb.checked = !!t.done;
+      cb.addEventListener('change', function () { t.done = cb.checked; scheduleSave(); renderTasks(); });
+      var main = document.createElement('div'); main.className = 'main';
+      var title = document.createElement('span'); title.className = 'title'; title.textContent = t.title;
+      main.appendChild(title);
+      if (t.due) {
+        var due = document.createElement('span');
+        due.className = 'task-due ' + (t.done ? '' : dueClass(t.due));
+        due.textContent = 'Due ' + fmtDate(t.due);
+        main.appendChild(due);
+      }
+      var del = document.createElement('button');
+      del.className = 'icon-btn'; del.type = 'button'; del.title = 'Remove'; del.textContent = '✕';
+      del.addEventListener('click', function () {
+        currentEventRecord.tasks = currentEventRecord.tasks.filter(function (x) { return x.id !== t.id; });
+        scheduleSave(); renderTasks();
+      });
+      li.appendChild(cb); li.appendChild(main); li.appendChild(del);
+      list.appendChild(li);
+    });
+    $('doneCount').textContent = done;
+    $('pendingTaskCount').textContent = currentEventRecord.tasks.length - done;
+    empty.classList.toggle('hidden', currentEventRecord.tasks.length > 0);
+  }
+
+  $('taskForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var title = $('taskTitle').value.trim();
+    var due = $('taskDue').value;
+    if (!title) return;
+    currentEventRecord.tasks.push({ id: uid(), title: title, due: due, done: false });
+    currentEventRecord.updatedAt = new Date().toISOString();
+    scheduleSave();
+    $('taskTitle').value = ''; $('taskDue').value = '';
+    renderTasks();
+  });
+
+  // Expenses
+  function renderExpenses() {
+    var body = $('expenseBody');
+    var empty = $('expenseEmpty');
+    var breakdown = $('categoryBreakdown');
+    body.innerHTML = ''; breakdown.innerHTML = '';
+    var sorted = currentEventRecord.expenses.slice().sort(function (a, b) {
+      return (b.date || '').localeCompare(a.date || '');
+    });
+    var total = 0; var byCat = {};
+    sorted.forEach(function (e) {
+      total += Number(e.amount) || 0;
+      byCat[e.category] = (byCat[e.category] || 0) + (Number(e.amount) || 0);
+      var tr = document.createElement('tr');
+      var tdDate = document.createElement('td'); tdDate.textContent = e.date ? fmtShortDate(e.date) : '—';
+      var tdDesc = document.createElement('td'); tdDesc.textContent = e.description;
+      var tdCat = document.createElement('td'); tdCat.textContent = e.category;
+      var tdAmt = document.createElement('td'); tdAmt.className = 'right'; tdAmt.textContent = fmtMoney(e.amount);
+      var tdAct = document.createElement('td'); tdAct.className = 'right';
+      var del = document.createElement('button');
+      del.className = 'icon-btn'; del.type = 'button'; del.title = 'Remove'; del.textContent = '✕';
+      del.addEventListener('click', function () {
+        currentEventRecord.expenses = currentEventRecord.expenses.filter(function (x) { return x.id !== e.id; });
+        scheduleSave(); renderExpenses();
+      });
+      tdAct.appendChild(del);
+      tr.appendChild(tdDate); tr.appendChild(tdDesc); tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdAct);
+      body.appendChild(tr);
+    });
+    $('expenseTotal').textContent = fmtMoney(total);
+    empty.classList.toggle('hidden', currentEventRecord.expenses.length > 0);
+    $('expenseTable').classList.toggle('hidden', currentEventRecord.expenses.length === 0);
+    Object.keys(byCat).sort().forEach(function (cat) {
+      var pill = document.createElement('span');
+      pill.className = 'cat-pill';
+      pill.textContent = cat + ': ' + fmtMoney(byCat[cat]);
+      breakdown.appendChild(pill);
+    });
+  }
+
+  $('expenseForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var desc = $('expDesc').value.trim();
+    var cat = $('expCategory').value;
+    var amt = parseFloat($('expAmount').value);
+    var date = $('expDate').value || new Date().toISOString().slice(0, 10);
+    if (!desc || isNaN(amt)) return;
+    currentEventRecord.expenses.push({ id: uid(), description: desc, category: cat, amount: amt, date: date });
+    currentEventRecord.updatedAt = new Date().toISOString();
+    scheduleSave();
+    $('expDesc').value = ''; $('expAmount').value = ''; $('expDate').value = '';
+    renderExpenses();
+  });
+
+  setInterval(function () {
+    if (currentEventRecord) renderCountdown();
+  }, 60 * 1000);
+
+  // ── Vendor home (unchanged behaviour, simpler chrome) ────
   function getVendorEvents() {
     try { return JSON.parse(localStorage.getItem(GP_VENDOR_EVENTS_KEY)) || []; }
     catch (e) { return []; }
@@ -342,8 +864,8 @@
   }
 
   function renderVendorEvents() {
-    var list = document.getElementById('vendorEventList');
-    var empty = document.getElementById('vendorEventEmpty');
+    var list = $('vendorEventList');
+    var empty = $('vendorEventEmpty');
     list.innerHTML = '';
     var events = getVendorEvents().slice().sort(function (a, b) {
       return (a.date || '').localeCompare(b.date || '');
@@ -351,33 +873,23 @@
     events.forEach(function (ev) {
       var li = document.createElement('li');
       li.className = 'list-item';
-      var main = document.createElement('div');
-      main.className = 'main';
-      var title = document.createElement('span');
-      title.className = 'title';
-      title.textContent = ev.client + ' \u00b7 ' + ev.type;
+      var main = document.createElement('div'); main.className = 'main';
+      var title = document.createElement('span'); title.className = 'title';
+      title.textContent = ev.client + ' · ' + ev.type;
       main.appendChild(title);
-      var meta = document.createElement('span');
-      meta.className = 'meta';
-      var d = ev.date ? new Date(ev.date + 'T00:00:00') : null;
-      var dateStr = d && !isNaN(d) ? d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : ev.date;
-      meta.textContent = dateStr + (ev.venue ? ' \u00b7 ' + ev.venue : '');
+      var meta = document.createElement('span'); meta.className = 'meta';
+      meta.textContent = fmtShortDate(ev.date) + (ev.venue ? ' · ' + ev.venue : '');
       main.appendChild(meta);
       var del = document.createElement('button');
-      del.className = 'icon-btn';
-      del.type = 'button';
-      del.title = 'Remove';
-      del.textContent = '\u2715';
+      del.className = 'icon-btn'; del.type = 'button'; del.title = 'Remove'; del.textContent = '✕';
       del.addEventListener('click', function () {
         var remaining = getVendorEvents().filter(function (x) { return x.id !== ev.id; });
-        saveVendorEvents(remaining);
-        renderVendorEvents();
+        saveVendorEvents(remaining); renderVendorEvents();
       });
-      li.appendChild(main);
-      li.appendChild(del);
+      li.appendChild(main); li.appendChild(del);
       list.appendChild(li);
     });
-    document.getElementById('vendorEventCount').textContent = events.length;
+    $('vendorEventCount').textContent = events.length;
     empty.classList.toggle('hidden', events.length > 0);
   }
 
@@ -385,486 +897,44 @@
   function bindVendorForm() {
     if (vendorFormBound) return;
     vendorFormBound = true;
-    document.getElementById('vendorEventForm').addEventListener('submit', function (e) {
+    $('vendorEventForm').addEventListener('submit', function (e) {
       e.preventDefault();
-      var client = document.getElementById('veClient').value.trim();
-      var type = document.getElementById('veType').value;
-      var date = document.getElementById('veDate').value;
-      var venue = document.getElementById('veVenue').value.trim();
+      var client = $('veClient').value.trim();
+      var type = $('veType').value;
+      var date = $('veDate').value;
+      var venue = $('veVenue').value.trim();
       if (!client || !date) return;
       var events = getVendorEvents();
       events.push({ id: uid(), client: client, type: type, date: date, venue: venue });
       saveVendorEvents(events);
-      document.getElementById('veClient').value = '';
-      document.getElementById('veDate').value = '';
-      document.getElementById('veVenue').value = '';
+      $('veClient').value = ''; $('veDate').value = ''; $('veVenue').value = '';
       renderVendorEvents();
     });
   }
 
   function showVendorHome(session) {
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('eventPicker').classList.add('hidden');
-    document.getElementById('appShell').classList.add('hidden');
-    document.getElementById('vendorHome').classList.remove('hidden');
-    document.body.classList.add('theme-vendor');
-
+    $('authScreen').classList.add('hidden');
+    $('homeScreen').classList.add('hidden');
+    $('appShell').classList.add('hidden');
+    $('vendorHome').classList.remove('hidden');
     var category = session.vendorCategory || '';
     var label = VENDOR_CATEGORY_LABELS[category] || 'Vendor';
-    document.getElementById('vendorGreeting').textContent = 'Hi ' + session.name.split(' ')[0];
-    document.getElementById('vendorTitle').textContent = label + ' Dashboard';
-    document.getElementById('vendorCategoryChip').textContent = label;
-    document.getElementById('vpName').textContent = session.name || '\u2014';
-    document.getElementById('vpCategory').textContent = label;
-    document.getElementById('vpPhone').textContent = session.vendorPhone || '\u2014';
-    document.getElementById('vpCity').textContent = session.vendorCity || '\u2014';
-
+    $('vendorGreeting').textContent = 'Hi ' + (session.name || '').split(' ')[0];
+    $('vendorTitle').textContent = label + ' Dashboard';
+    $('vendorCategoryChip').textContent = label;
+    $('vpName').textContent = session.name || '—';
+    $('vpCategory').textContent = label;
+    $('vpPhone').textContent = session.vendorPhone || '—';
+    $('vpCity').textContent = session.vendorCity || '—';
     bindVendorForm();
     renderVendorEvents();
   }
 
-  function applyEventTheme(event) {
-    var allThemes = EVENT_TYPES.map(function (e) { return e.themeClass; });
-    document.body.classList.remove.apply(document.body.classList, allThemes);
-    document.body.classList.add(event.themeClass);
-
-    document.getElementById('appTitle').textContent = event.title;
-    document.getElementById('appTagline').textContent = event.tagline;
-    document.getElementById('muhurthamSectionTitle').textContent = event.sectionTitle;
-
-    ALL_FIELDS.forEach(function (f) {
-      var visible = event.fields.indexOf(f) >= 0;
-      var nodes = document.querySelectorAll('[data-field="' + f + '"]');
-      for (var i = 0; i < nodes.length; i++) {
-        nodes[i].classList.toggle('hidden', !visible);
-      }
-    });
-
-    if (event.honoreeLabel) {
-      var hLabel = document.getElementById('mHonoreeLabel');
-      var fLabel = document.getElementById('fHonoreeLabel');
-      if (hLabel) hLabel.textContent = event.honoreeLabel;
-      if (fLabel) {
-        fLabel.childNodes[0].nodeValue = event.honoreeLabel;
-      }
-    }
-
-    var sel = document.getElementById('expCategory');
-    var prev = sel.value;
-    sel.innerHTML = '';
-    event.categories.forEach(function (cat) {
-      var opt = document.createElement('option');
-      opt.value = cat;
-      opt.textContent = cat;
-      sel.appendChild(opt);
-    });
-    if (event.categories.indexOf(prev) >= 0) sel.value = prev;
-  }
-
-  var appInitialized = false;
-  function showApp(session, event) {
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('eventPicker').classList.add('hidden');
-    document.getElementById('appShell').classList.remove('hidden');
-    document.getElementById('userGreeting').textContent = 'Hi ' + session.name.split(' ')[0];
-    if (event) {
-      currentEvent = event;
-      applyEventTheme(event);
-    }
-    if (!appInitialized) {
-      initApp();
-      appInitialized = true;
-    } else {
-      renderCountdownIfPossible();
-    }
-  }
-
-  function renderCountdownIfPossible() {
-    var label = document.getElementById('eventDateLabel');
-    if (label && !label.textContent.match(/\d/)) {
-      label.textContent = currentEvent ? currentEvent.countdownPlaceholder : 'Set the date below';
-    }
-  }
-
-  // Restore session on page load
+  // ── Restore session on page load ─────────────────────────
   var existingSession = getSession();
   var existingToken = getToken();
-  var existingEvent = getEvent();
   if (existingSession && existingToken && !isTokenExpired(existingToken)) {
-    if (existingSession.role === 'vendor') {
-      showVendorHome(existingSession);
-    } else if (existingEvent) {
-      showApp(existingSession, existingEvent);
-    } else {
-      showEventPicker(existingSession);
-    }
-  }
-
-  // ── Main App ─────────────────────────────────────────────
-  function initApp() {
-    var defaultState = {
-      muhurtham: { date: '', time: '', nakshatra: '', venue: '', priest: '', honoree: '', theme: '', notes: '' },
-      guests: [],
-      tasks: [],
-      expenses: []
-    };
-
-    var state = JSON.parse(JSON.stringify(defaultState));
-    var saveTimer;
-
-    // Load from API then render everything
-    apiCall('GET', 'data', null, getToken())
-      .then(function (data) {
-        if (data) state = Object.assign(JSON.parse(JSON.stringify(defaultState)), data);
-        renderAll();
-      })
-      .catch(function () {
-        renderAll();
-      });
-
-    function renderAll() {
-      renderMuhurtham();
-      renderCountdown();
-      renderGuests();
-      renderTasks();
-      renderExpenses();
-    }
-
-    // Debounced — batches rapid changes into a single API write
-    function saveState() {
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(function () {
-        apiCall('PUT', 'data', state, getToken()).catch(function () {});
-      }, 800);
-    }
-
-    function fmtDate(iso) {
-      if (!iso) return '';
-      var d = new Date(iso + 'T00:00:00');
-      if (isNaN(d)) return iso;
-      return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-    }
-
-    function fmtTime(t) {
-      if (!t) return '';
-      var parts = t.split(':').map(Number);
-      var d = new Date();
-      d.setHours(parts[0], parts[1], 0, 0);
-      return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    }
-
-    function fmtMoney(n) {
-      var num = Number(n) || 0;
-      return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    // ── Countdown ──
-    function renderCountdown() {
-      var el = document.getElementById('daysToGo');
-      var label = document.getElementById('eventDateLabel');
-      var date = state.muhurtham.date;
-      var time = state.muhurtham.time;
-      if (!date) {
-        el.textContent = '--';
-        label.textContent = (currentEvent && currentEvent.countdownPlaceholder) || 'Set the date below';
-        return;
-      }
-      var target = new Date(date + 'T' + (time || '00:00') + ':00');
-      var now = new Date();
-      var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      var eventDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-      var diffDays = Math.round((eventDay - today) / (1000 * 60 * 60 * 24));
-      if (diffDays > 0) {
-        el.textContent = diffDays;
-        document.querySelector('.countdown-label').textContent = diffDays === 1 ? 'day to go' : 'days to go';
-      } else if (diffDays === 0) {
-        el.textContent = '0';
-        document.querySelector('.countdown-label').textContent = 'today!';
-      } else {
-        el.textContent = Math.abs(diffDays);
-        document.querySelector('.countdown-label').textContent = 'days ago';
-      }
-      label.textContent = fmtDate(date) + (time ? ' \u00b7 ' + fmtTime(time) : '');
-    }
-
-    // ── Muhurtham ──
-    function renderMuhurtham() {
-      var m = state.muhurtham;
-      document.getElementById('mDate').textContent = m.date ? fmtDate(m.date) : '\u2014';
-      document.getElementById('mTime').textContent = m.time ? fmtTime(m.time) : '\u2014';
-      document.getElementById('mNakshatra').textContent = m.nakshatra || '\u2014';
-      document.getElementById('mVenue').textContent = m.venue || '\u2014';
-      document.getElementById('mPriest').textContent = m.priest || '\u2014';
-      document.getElementById('mHonoree').textContent = m.honoree || '\u2014';
-      document.getElementById('mTheme').textContent = m.theme || '\u2014';
-      document.getElementById('mNotes').textContent = m.notes || '\u2014';
-    }
-
-    function openMuhurthamForm() {
-      var m = state.muhurtham;
-      document.getElementById('fDate').value = m.date || '';
-      document.getElementById('fTime').value = m.time || '';
-      document.getElementById('fNakshatra').value = m.nakshatra || '';
-      document.getElementById('fVenue').value = m.venue || '';
-      document.getElementById('fPriest').value = m.priest || '';
-      document.getElementById('fHonoree').value = m.honoree || '';
-      document.getElementById('fTheme').value = m.theme || '';
-      document.getElementById('fNotes').value = m.notes || '';
-      document.getElementById('muhurthamView').classList.add('hidden');
-      document.getElementById('muhurthamForm').classList.remove('hidden');
-    }
-
-    function closeMuhurthamForm() {
-      document.getElementById('muhurthamForm').classList.add('hidden');
-      document.getElementById('muhurthamView').classList.remove('hidden');
-    }
-
-    document.getElementById('editMuhurthamBtn').addEventListener('click', openMuhurthamForm);
-    document.getElementById('cancelMuhurthamBtn').addEventListener('click', closeMuhurthamForm);
-    document.getElementById('muhurthamForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      state.muhurtham = {
-        date: document.getElementById('fDate').value,
-        time: document.getElementById('fTime').value,
-        nakshatra: document.getElementById('fNakshatra').value.trim(),
-        venue: document.getElementById('fVenue').value.trim(),
-        priest: document.getElementById('fPriest').value.trim(),
-        honoree: document.getElementById('fHonoree').value.trim(),
-        theme: document.getElementById('fTheme').value.trim(),
-        notes: document.getElementById('fNotes').value.trim()
-      };
-      saveState();
-      renderMuhurtham();
-      renderCountdown();
-      closeMuhurthamForm();
-    });
-
-    // ── Guests ──
-    function renderGuests() {
-      var list = document.getElementById('guestList');
-      var empty = document.getElementById('guestEmpty');
-      list.innerHTML = '';
-      var invited = 0;
-      var totalHeadcount = 0;
-      state.guests.forEach(function (g) {
-        var gCount = g.count || 1;
-        if (g.invited) invited++;
-        totalHeadcount += gCount;
-        var li = document.createElement('li');
-        li.className = 'list-item';
-        var main = document.createElement('div');
-        main.className = 'main';
-        var title = document.createElement('span');
-        title.className = 'title';
-        title.textContent = g.name;
-        main.appendChild(title);
-        var metaLine = document.createElement('span');
-        metaLine.className = 'meta';
-        var metaParts = [];
-        if (g.phone) metaParts.push(g.phone);
-        metaParts.push(gCount === 1 ? '1 person' : gCount + ' people');
-        metaLine.textContent = metaParts.join(' \u00b7 ');
-        main.appendChild(metaLine);
-        var tag = document.createElement('span');
-        tag.className = 'invited-tag ' + (g.invited ? 'yes' : 'no');
-        tag.textContent = g.invited ? 'Invited' : 'Pending';
-        var toggle = document.createElement('button');
-        toggle.className = 'toggle-btn';
-        toggle.type = 'button';
-        toggle.textContent = g.invited ? 'Mark pending' : 'Mark invited';
-        toggle.addEventListener('click', function () {
-          g.invited = !g.invited;
-          saveState();
-          renderGuests();
-        });
-        var del = document.createElement('button');
-        del.className = 'icon-btn';
-        del.type = 'button';
-        del.title = 'Remove';
-        del.textContent = '\u2715';
-        del.addEventListener('click', function () {
-          state.guests = state.guests.filter(function (x) { return x.id !== g.id; });
-          saveState();
-          renderGuests();
-        });
-        li.appendChild(main);
-        li.appendChild(tag);
-        li.appendChild(toggle);
-        li.appendChild(del);
-        list.appendChild(li);
-      });
-      document.getElementById('invitedCount').textContent = invited;
-      document.getElementById('pendingInviteCount').textContent = state.guests.length - invited;
-      document.getElementById('totalHeadcount').textContent = totalHeadcount;
-      empty.classList.toggle('hidden', state.guests.length > 0);
-    }
-
-    document.getElementById('guestForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var name = document.getElementById('guestName').value.trim();
-      var phone = document.getElementById('guestPhone').value.trim();
-      var count = Math.max(1, parseInt(document.getElementById('guestCount').value, 10) || 1);
-      if (!name) return;
-      state.guests.push({ id: uid(), name: name, phone: phone, count: count, invited: false });
-      saveState();
-      document.getElementById('guestName').value = '';
-      document.getElementById('guestPhone').value = '';
-      document.getElementById('guestCount').value = '1';
-      renderGuests();
-    });
-
-    // ── Tasks ──
-    function dueClass(due) {
-      if (!due) return '';
-      var d = new Date(due + 'T00:00:00');
-      var now = new Date();
-      var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      var diff = Math.round((d - today) / (1000 * 60 * 60 * 24));
-      if (diff < 0) return 'overdue';
-      if (diff <= 3) return 'soon';
-      return '';
-    }
-
-    function renderTasks() {
-      var list = document.getElementById('taskList');
-      var empty = document.getElementById('taskEmpty');
-      list.innerHTML = '';
-      var sorted = state.tasks.slice().sort(function (a, b) {
-        if (a.done !== b.done) return a.done ? 1 : -1;
-        var ad = a.due || '9999-12-31';
-        var bd = b.due || '9999-12-31';
-        return ad.localeCompare(bd);
-      });
-      var done = 0;
-      sorted.forEach(function (t) {
-        if (t.done) done++;
-        var li = document.createElement('li');
-        li.className = 'list-item' + (t.done ? ' done' : '');
-        var cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'task-check';
-        cb.checked = !!t.done;
-        cb.addEventListener('change', function () {
-          t.done = cb.checked;
-          saveState();
-          renderTasks();
-        });
-        var main = document.createElement('div');
-        main.className = 'main';
-        var title = document.createElement('span');
-        title.className = 'title';
-        title.textContent = t.title;
-        main.appendChild(title);
-        if (t.due) {
-          var due = document.createElement('span');
-          due.className = 'task-due ' + (t.done ? '' : dueClass(t.due));
-          due.textContent = 'Due Date: ' + fmtDate(t.due);
-          main.appendChild(due);
-        }
-        var del = document.createElement('button');
-        del.className = 'icon-btn';
-        del.type = 'button';
-        del.title = 'Remove';
-        del.textContent = '\u2715';
-        del.addEventListener('click', function () {
-          state.tasks = state.tasks.filter(function (x) { return x.id !== t.id; });
-          saveState();
-          renderTasks();
-        });
-        li.appendChild(cb);
-        li.appendChild(main);
-        li.appendChild(del);
-        list.appendChild(li);
-      });
-      document.getElementById('doneCount').textContent = done;
-      document.getElementById('pendingTaskCount').textContent = state.tasks.length - done;
-      empty.classList.toggle('hidden', state.tasks.length > 0);
-    }
-
-    document.getElementById('taskForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var title = document.getElementById('taskTitle').value.trim();
-      var due = document.getElementById('taskDue').value;
-      if (!title) return;
-      state.tasks.push({ id: uid(), title: title, due: due, done: false });
-      saveState();
-      document.getElementById('taskTitle').value = '';
-      document.getElementById('taskDue').value = '';
-      renderTasks();
-    });
-
-    // ── Expenses ──
-    function renderExpenses() {
-      var body = document.getElementById('expenseBody');
-      var empty = document.getElementById('expenseEmpty');
-      var breakdown = document.getElementById('categoryBreakdown');
-      body.innerHTML = '';
-      breakdown.innerHTML = '';
-      var sorted = state.expenses.slice().sort(function (a, b) {
-        return (b.date || '').localeCompare(a.date || '');
-      });
-      var total = 0;
-      var byCat = {};
-      sorted.forEach(function (e) {
-        total += Number(e.amount) || 0;
-        byCat[e.category] = (byCat[e.category] || 0) + (Number(e.amount) || 0);
-        var tr = document.createElement('tr');
-        var tdDate = document.createElement('td');
-        tdDate.textContent = e.date ? fmtDate(e.date) : '\u2014';
-        var tdDesc = document.createElement('td');
-        tdDesc.textContent = e.description;
-        var tdCat = document.createElement('td');
-        tdCat.textContent = e.category;
-        var tdAmt = document.createElement('td');
-        tdAmt.className = 'right';
-        tdAmt.textContent = fmtMoney(e.amount);
-        var tdAct = document.createElement('td');
-        tdAct.className = 'right';
-        var del = document.createElement('button');
-        del.className = 'icon-btn';
-        del.type = 'button';
-        del.title = 'Remove';
-        del.textContent = '\u2715';
-        del.addEventListener('click', function () {
-          state.expenses = state.expenses.filter(function (x) { return x.id !== e.id; });
-          saveState();
-          renderExpenses();
-        });
-        tdAct.appendChild(del);
-        tr.appendChild(tdDate);
-        tr.appendChild(tdDesc);
-        tr.appendChild(tdCat);
-        tr.appendChild(tdAmt);
-        tr.appendChild(tdAct);
-        body.appendChild(tr);
-      });
-      document.getElementById('expenseTotal').textContent = fmtMoney(total);
-      empty.classList.toggle('hidden', state.expenses.length > 0);
-      document.getElementById('expenseTable').classList.toggle('hidden', state.expenses.length === 0);
-      Object.keys(byCat).sort().forEach(function (cat) {
-        var pill = document.createElement('span');
-        pill.className = 'cat-pill';
-        pill.textContent = cat + ': ' + fmtMoney(byCat[cat]);
-        breakdown.appendChild(pill);
-      });
-    }
-
-    document.getElementById('expenseForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var desc = document.getElementById('expDesc').value.trim();
-      var cat = document.getElementById('expCategory').value;
-      var amt = parseFloat(document.getElementById('expAmount').value);
-      var date = document.getElementById('expDate').value || new Date().toISOString().slice(0, 10);
-      if (!desc || isNaN(amt)) return;
-      state.expenses.push({ id: uid(), description: desc, category: cat, amount: amt, date: date });
-      saveState();
-      document.getElementById('expDesc').value = '';
-      document.getElementById('expAmount').value = '';
-      document.getElementById('expDate').value = '';
-      renderExpenses();
-    });
-
-    setInterval(renderCountdown, 60 * 1000);
+    routeAfterAuth(existingSession);
   }
 
 })();
