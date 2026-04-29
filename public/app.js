@@ -68,7 +68,7 @@
     { id: 'gruhapravesham', label: 'House Warming', icon: '🏠',
       title: 'Gruhapravesham Planner', tagline: 'Plan the housewarming with calm and clarity',
       themeClass: 'theme-marriage', sectionTitle: 'Muhurtham Details', countdownPlaceholder: 'Set the muhurtham below',
-      fields: ['date', 'time', 'nakshatra', 'venue', 'priest', 'notes'],
+      fields: ['date', 'time', 'nakshatra', 'venue', 'notes'],
       categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Return Gifts', 'Gifts', 'Travel', 'Other'] },
     { id: 'birthday', label: 'Birthday', icon: '🎂',
       title: 'Birthday Planner', tagline: 'Plan a joyful celebration',
@@ -112,7 +112,7 @@
   var VENDOR_CATEGORY_LABELS = {
     caterer: 'Caterer', photographer: 'Photographer', priest: 'Priest',
     decorator: 'Decorator', makeup: 'Makeup Artist', venue: 'Venue',
-    entertainment: 'Entertainment', other: 'Other'
+    tenthouse: 'Tent House', entertainment: 'Entertainment', other: 'Other'
   };
 
   // ── Session helpers ──────────────────────────────────────
@@ -945,10 +945,7 @@
       var title = document.createElement('span'); title.className = 'title'; title.textContent = g.name;
       main.appendChild(title);
       var meta = document.createElement('span'); meta.className = 'meta';
-      var parts = [];
-      if (g.phone) parts.push(g.phone);
-      parts.push(c === 1 ? '1 person' : c + ' people');
-      meta.textContent = parts.join(' · ');
+      meta.textContent = c === 1 ? '1 person' : c + ' people';
       main.appendChild(meta);
       var tag = document.createElement('span');
       tag.className = 'invited-tag ' + (g.invited ? 'yes' : 'no');
@@ -977,13 +974,12 @@
   $('guestForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var name = $('guestName').value.trim();
-    var phone = $('guestPhone').value.trim();
     var count = Math.max(1, parseInt($('guestCount').value, 10) || 1);
     if (!name) return;
-    currentEventRecord.guests.push({ id: uid(), name: name, phone: phone, count: count, invited: false });
+    currentEventRecord.guests.push({ id: uid(), name: name, count: count, invited: false });
     currentEventRecord.updatedAt = new Date().toISOString();
     scheduleSave();
-    $('guestName').value = ''; $('guestPhone').value = ''; $('guestCount').value = '1';
+    $('guestName').value = ''; $('guestCount').value = '1';
     renderGuests();
   });
 
@@ -1138,19 +1134,13 @@
   function renderExpenses() {
     var body = $('expenseBody');
     var empty = $('expenseEmpty');
-    var breakdown = $('categoryBreakdown');
-    body.innerHTML = ''; breakdown.innerHTML = '';
-    var sorted = currentEventRecord.expenses.slice().sort(function (a, b) {
-      return (b.date || '').localeCompare(a.date || '');
-    });
-    var total = 0; var byCat = {};
+    body.innerHTML = '';
+    var sorted = currentEventRecord.expenses.slice();
+    var total = 0;
     sorted.forEach(function (e) {
       total += Number(e.amount) || 0;
-      byCat[e.category] = (byCat[e.category] || 0) + (Number(e.amount) || 0);
       var tr = document.createElement('tr');
-      var tdDate = document.createElement('td'); tdDate.textContent = e.date ? fmtShortDate(e.date) : '—';
       var tdDesc = document.createElement('td'); tdDesc.textContent = e.description;
-      var tdCat = document.createElement('td'); tdCat.textContent = e.category;
       var tdAmt = document.createElement('td'); tdAmt.className = 'right'; tdAmt.textContent = fmtMoney(e.amount);
       var tdAct = document.createElement('td'); tdAct.className = 'right';
       var del = document.createElement('button');
@@ -1160,31 +1150,23 @@
         scheduleSave(); renderExpenses();
       });
       tdAct.appendChild(del);
-      tr.appendChild(tdDate); tr.appendChild(tdDesc); tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdAct);
+      tr.appendChild(tdDesc); tr.appendChild(tdAmt); tr.appendChild(tdAct);
       body.appendChild(tr);
     });
     $('expenseTotal').textContent = fmtMoney(total);
     empty.classList.toggle('hidden', currentEventRecord.expenses.length > 0);
     $('expenseTable').classList.toggle('hidden', currentEventRecord.expenses.length === 0);
-    Object.keys(byCat).sort().forEach(function (cat) {
-      var pill = document.createElement('span');
-      pill.className = 'cat-pill';
-      pill.textContent = cat + ': ' + fmtMoney(byCat[cat]);
-      breakdown.appendChild(pill);
-    });
   }
 
   $('expenseForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var desc = $('expDesc').value.trim();
-    var cat = $('expCategory').value;
     var amt = parseFloat($('expAmount').value);
-    var date = $('expDate').value || new Date().toISOString().slice(0, 10);
     if (!desc || isNaN(amt)) return;
-    currentEventRecord.expenses.push({ id: uid(), description: desc, category: cat, amount: amt, date: date });
+    currentEventRecord.expenses.push({ id: uid(), description: desc, amount: amt });
     currentEventRecord.updatedAt = new Date().toISOString();
     scheduleSave();
-    $('expDesc').value = ''; $('expAmount').value = ''; $('expDate').value = '';
+    $('expDesc').value = ''; $('expAmount').value = '';
     renderExpenses();
   });
 
@@ -1193,35 +1175,51 @@
   }, 60 * 1000);
 
   // ── Vendor home (server-side bookings keyed by user_id) ──
+  function renderBookingItem(ev) {
+    var li = document.createElement('li');
+    li.className = 'list-item';
+    var main = document.createElement('div'); main.className = 'main';
+    var title = document.createElement('span'); title.className = 'title';
+    title.textContent = ev.client + ' · ' + ev.type;
+    main.appendChild(title);
+    var meta = document.createElement('span'); meta.className = 'meta';
+    meta.textContent = fmtShortDate(ev.date) + (ev.venue ? ' · ' + ev.venue : '');
+    main.appendChild(meta);
+    var del = document.createElement('button');
+    del.className = 'icon-btn'; del.type = 'button'; del.title = 'Remove'; del.textContent = '✕';
+    del.addEventListener('click', function () {
+      store.bookings = (store.bookings || []).filter(function (x) { return x.id !== ev.id; });
+      scheduleSave();
+      renderVendorBookings();
+    });
+    li.appendChild(main); li.appendChild(del);
+    return li;
+  }
+
   function renderVendorBookings() {
-    var list = $('vendorEventList');
-    var empty = $('vendorEventEmpty');
-    list.innerHTML = '';
-    var bookings = (store.bookings || []).slice().sort(function (a, b) {
-      return (a.date || '').localeCompare(b.date || '');
-    });
-    bookings.forEach(function (ev) {
-      var li = document.createElement('li');
-      li.className = 'list-item';
-      var main = document.createElement('div'); main.className = 'main';
-      var title = document.createElement('span'); title.className = 'title';
-      title.textContent = ev.client + ' · ' + ev.type;
-      main.appendChild(title);
-      var meta = document.createElement('span'); meta.className = 'meta';
-      meta.textContent = fmtShortDate(ev.date) + (ev.venue ? ' · ' + ev.venue : '');
-      main.appendChild(meta);
-      var del = document.createElement('button');
-      del.className = 'icon-btn'; del.type = 'button'; del.title = 'Remove'; del.textContent = '✕';
-      del.addEventListener('click', function () {
-        store.bookings = (store.bookings || []).filter(function (x) { return x.id !== ev.id; });
-        scheduleSave();
-        renderVendorBookings();
-      });
-      li.appendChild(main); li.appendChild(del);
-      list.appendChild(li);
-    });
-    $('vendorEventCount').textContent = bookings.length;
-    empty.classList.toggle('hidden', bookings.length > 0);
+    var upcomingList = $('vendorUpcomingList');
+    var pastList = $('vendorPastList');
+    var upcomingEmpty = $('vendorUpcomingEmpty');
+    var pastEmpty = $('vendorPastEmpty');
+    upcomingList.innerHTML = '';
+    pastList.innerHTML = '';
+
+    var todayIso = new Date().toISOString().slice(0, 10);
+    var bookings = (store.bookings || []).slice();
+    var upcoming = bookings
+      .filter(function (b) { return (b.date || '') >= todayIso; })
+      .sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    var past = bookings
+      .filter(function (b) { return (b.date || '') < todayIso; })
+      .sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+
+    upcoming.forEach(function (ev) { upcomingList.appendChild(renderBookingItem(ev)); });
+    past.forEach(function (ev) { pastList.appendChild(renderBookingItem(ev)); });
+
+    $('vendorUpcomingCount').textContent = upcoming.length;
+    $('vendorPastCount').textContent = past.length;
+    upcomingEmpty.classList.toggle('hidden', upcoming.length > 0);
+    pastEmpty.classList.toggle('hidden', past.length > 0);
   }
 
   var vendorFormBound = false;
@@ -1254,7 +1252,6 @@
     var category = session.vendorCategory || '';
     var label = VENDOR_CATEGORY_LABELS[category] || 'Vendor';
     $('vendorGreeting').textContent = 'Hi ' + (session.name || '').split(' ')[0];
-    $('vendorTitle').textContent = label + ' Dashboard';
     $('vendorCategoryChip').textContent = label;
     $('vpName').textContent = session.name || '—';
     $('vpCategory').textContent = label;

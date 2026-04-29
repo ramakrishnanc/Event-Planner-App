@@ -2,7 +2,7 @@ const { getPool, ensureSchema, sql } = require('../shared/db');
 
 var ALLOWED_VENDOR_CATEGORIES = [
   'caterer', 'photographer', 'priest', 'decorator',
-  'makeup', 'venue', 'entertainment', 'other'
+  'makeup', 'venue', 'tenthouse', 'entertainment', 'other'
 ];
 
 module.exports = async function (context, req) {

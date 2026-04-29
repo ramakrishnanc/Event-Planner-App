@@ -86,6 +86,7 @@
             <option value="decorator">Decorator</option>
             <option value="makeup">Makeup Artist</option>
             <option value="venue">Venue</option>
+            <option value="tenthouse">Tent House</option>
             <option value="entertainment">Entertainment</option>
             <option value="other">Other</option>
           </select>
@@ -181,21 +182,8 @@
     <main class="container">
       <section class="card">
         <div class="card-head">
-          <h2 id="vendorTitle">Vendor Dashboard</h2>
-          <span class="chip chip-total" id="vendorCategoryChip">Vendor</span>
-        </div>
-        <div class="kv-grid">
-          <div><span class="label">Name</span><span class="value" id="vpName">&mdash;</span></div>
-          <div><span class="label">Category</span><span class="value" id="vpCategory">&mdash;</span></div>
-          <div><span class="label">Phone</span><span class="value" id="vpPhone">&mdash;</span></div>
-          <div><span class="label">City</span><span class="value" id="vpCity">&mdash;</span></div>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <h2>Events I'm Planning For</h2>
-          <span class="chip chip-ok"><span id="vendorEventCount">0</span> bookings</span>
+          <h2>Upcoming Events</h2>
+          <span class="chip chip-ok"><span id="vendorUpcomingCount">0</span></span>
         </div>
         <form id="vendorEventForm" class="stacked-form">
           <input type="text" id="veClient" placeholder="Client / host name" required />
@@ -210,10 +198,34 @@
           </select>
           <input type="date" id="veDate" required />
           <input type="text" id="veVenue" placeholder="Venue (optional)" />
-          <button type="submit" class="btn-primary btn-block">Add booking</button>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-sm">Add booking</button>
+          </div>
         </form>
-        <ul class="list" id="vendorEventList"></ul>
-        <p class="empty hidden" id="vendorEventEmpty">No events booked yet.</p>
+        <ul class="list" id="vendorUpcomingList"></ul>
+        <p class="empty hidden" id="vendorUpcomingEmpty">No upcoming events booked.</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Past Events</h2>
+          <span class="chip chip-total"><span id="vendorPastCount">0</span></span>
+        </div>
+        <ul class="list" id="vendorPastList"></ul>
+        <p class="empty hidden" id="vendorPastEmpty">No past events yet.</p>
+      </section>
+
+      <section class="card" id="vendorProfileCard">
+        <div class="card-head">
+          <h2>Profile</h2>
+          <span class="chip chip-total" id="vendorCategoryChip">Vendor</span>
+        </div>
+        <div class="kv-grid">
+          <div><span class="label">Name</span><span class="value" id="vpName">&mdash;</span></div>
+          <div><span class="label">Category</span><span class="value" id="vpCategory">&mdash;</span></div>
+          <div><span class="label">Phone</span><span class="value" id="vpPhone">&mdash;</span></div>
+          <div><span class="label">City</span><span class="value" id="vpCity">&mdash;</span></div>
+        </div>
       </section>
     </main>
     <footer class="foot">
@@ -295,11 +307,10 @@
         </div>
         <form id="guestForm" class="stacked-form">
           <input type="text" id="guestName" placeholder="Guest name" required />
-          <div class="row-2">
-            <input type="text" id="guestPhone" placeholder="Phone (optional)" inputmode="tel" />
-            <input type="number" id="guestCount" placeholder="Count" min="1" value="1" inputmode="numeric" title="Total people coming" />
+          <input type="number" id="guestCount" placeholder="Count" min="1" value="1" inputmode="numeric" title="Total people coming" />
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-sm">Add guest</button>
           </div>
-          <button type="submit" class="btn-primary btn-block">Add guest</button>
         </form>
         <ul class="list" id="guestList"></ul>
         <p class="empty hidden" id="guestEmpty">No guests yet.</p>
@@ -316,7 +327,9 @@
         <form id="taskForm" class="stacked-form">
           <input type="text" id="taskTitle" placeholder="Task description" required />
           <input type="date" id="taskDue" />
-          <button type="submit" class="btn-primary btn-block">Add task</button>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-sm">Add task</button>
+          </div>
         </form>
         <ul class="list" id="taskList"></ul>
         <p class="empty hidden" id="taskEmpty">No tasks yet.</p>
@@ -337,13 +350,16 @@
               <option value="decorator">Decorator</option>
               <option value="makeup">Makeup Artist</option>
               <option value="venue">Venue</option>
+              <option value="tenthouse">Tent House</option>
               <option value="entertainment">Entertainment</option>
               <option value="other">Other</option>
             </select>
             <input type="tel" id="pvPhone" placeholder="Phone" inputmode="tel" autocomplete="tel" />
           </div>
           <input type="text" id="pvNotes" placeholder="Notes (optional)" />
-          <button type="submit" class="btn-primary btn-block">Add vendor</button>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-sm">Add vendor</button>
+          </div>
         </form>
         <ul class="list vendor-list" id="planVendorList"></ul>
         <p class="empty hidden" id="planVendorEmpty">No vendors added yet.</p>
@@ -356,34 +372,20 @@
         </div>
         <form id="expenseForm" class="stacked-form">
           <input type="text" id="expDesc" placeholder="Description" required />
-          <div class="row-2">
-            <select id="expCategory">
-              <option value="Pooja">Pooja</option>
-              <option value="Food &amp; Catering">Food &amp; Catering</option>
-              <option value="Decoration">Decoration</option>
-              <option value="Priest Dakshina">Priest Dakshina</option>
-              <option value="Photographer">Photographer</option>
-              <option value="Makeup">Makeup</option>
-              <option value="Return Gifts">Return Gifts</option>
-              <option value="Gifts">Gifts</option>
-              <option value="Travel">Travel</option>
-              <option value="Other">Other</option>
-            </select>
-            <input type="number" id="expAmount" placeholder="Amount" min="0" step="0.01" required inputmode="decimal" />
+          <input type="number" id="expAmount" placeholder="Amount" min="0" step="0.01" required inputmode="decimal" />
+          <div class="form-actions">
+            <button type="submit" class="btn-primary btn-sm">Add expense</button>
           </div>
-          <input type="date" id="expDate" />
-          <button type="submit" class="btn-primary btn-block">Add expense</button>
         </form>
         <div class="expense-table-wrap">
           <table class="expense-table" id="expenseTable">
             <thead>
-              <tr><th>Date</th><th>Description</th><th>Category</th><th class="right">Amount</th><th></th></tr>
+              <tr><th>Description</th><th class="right">Amount</th><th></th></tr>
             </thead>
             <tbody id="expenseBody"></tbody>
           </table>
         </div>
         <p class="empty hidden" id="expenseEmpty">No expenses logged yet.</p>
-        <div class="category-breakdown" id="categoryBreakdown"></div>
       </section>
     </main>
 
