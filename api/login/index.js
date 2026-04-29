@@ -1,22 +1,19 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getPool } = require('../shared/db');
+const { getPool, sql } = require('../shared/db');
 
-var schemaCache = null;
 async function detectSchema(pool) {
-  if (schemaCache) return schemaCache;
   var result = await pool.request().query(
     "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Users'"
   );
   var cols = {};
   result.recordset.forEach(function (r) { cols[r.COLUMN_NAME.toLowerCase()] = true; });
-  schemaCache = {
+  return {
     hasRole: !!cols['role'],
     hasVendorCategory: !!cols['vendor_category'],
     hasVendorPhone: !!cols['vendor_phone'],
     hasVendorCity: !!cols['vendor_city']
   };
-  return schemaCache;
 }
 
 module.exports = async function (context, req) {
@@ -40,7 +37,7 @@ module.exports = async function (context, req) {
     if (schema.hasVendorCity) selectCols.push('vendor_city');
 
     var result = await pool.request()
-      .input('email', email)
+      .input('email', sql.NVarChar(320), email)
       .query('SELECT ' + selectCols.join(', ') + ' FROM Users WHERE email = @email');
 
     var found = result.recordset[0];
@@ -68,7 +65,8 @@ module.exports = async function (context, req) {
 
     context.res = { status: 200, body: { token: token, user: user } };
   } catch (err) {
-    context.log.error('Login error:', err && err.message, err && err.stack);
-    context.res = { status: 500, body: { error: 'Something went wrong. Please try again.' } };
+    var message = (err && err.message) || 'unknown error';
+    context.log.error('Login error:', message, err && err.stack);
+    context.res = { status: 500, body: { error: 'Login failed: ' + message } };
   }
 };

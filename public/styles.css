@@ -17,12 +17,57 @@
 
 * { box-sizing: border-box; }
 
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: var(--bg);
   color: var(--ink);
   line-height: 1.45;
+}
+
+img, svg, video { max-width: 100%; height: auto; }
+input, select, textarea, button { max-width: 100%; }
+
+/* Evento brand logo */
+.brand-logo {
+  font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, var(--gold), var(--saffron-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 6px rgba(124, 29, 46, 0.12);
+  display: inline-block;
+}
+.brand-mini {
+  font-size: 28px;
+  line-height: 1;
+  background: linear-gradient(135deg, #fff8e7, var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.event-picker-prompt {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+}
+.auth-divider-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--gold);
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .hero {
@@ -32,6 +77,7 @@ body {
   color: #fff8e7;
   padding: 36px 20px 56px;
   border-bottom: 4px solid var(--gold);
+  width: 100%;
 }
 .hero-inner {
   max-width: 1100px;
@@ -83,6 +129,7 @@ body {
 }
 
 .container {
+  width: 100%;
   max-width: 1100px;
   margin: -32px auto 40px;
   padding: 0 20px;
@@ -136,8 +183,38 @@ body {
 }
 @media (max-width: 820px) {
   .grid-2 { grid-template-columns: 1fr; }
-  .hero-inner { flex-direction: column; align-items: flex-start; }
-  .countdown-card { width: 100%; }
+  .hero { padding: 28px 16px 48px; }
+  .hero-inner { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .countdown-card { width: 100%; min-width: 0; }
+  .container { padding: 0 14px; }
+  .card { padding: 18px 14px; }
+  .title-block h1 { font-size: 24px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .muhurtham-grid { grid-template-columns: 1fr; }
+  .inline-form { flex-direction: column; }
+  .inline-form input,
+  .inline-form select,
+  .inline-form button { flex: 1 1 auto; width: 100%; }
+  .expense-form input[type="number"],
+  .expense-form select,
+  .guest-count-input { flex: 1 1 auto; }
+  .list-item { flex-wrap: wrap; }
+  .expense-table { font-size: 13px; }
+  .expense-table th, .expense-table td { padding: 8px 6px; }
+}
+
+@media (max-width: 480px) {
+  .auth-card { padding: 28px 18px 22px; }
+  .event-card { padding: 28px 16px 20px; }
+  .auth-app-title.brand-logo { font-size: 38px; letter-spacing: 1.5px; }
+  .auth-app-title { font-size: 22px; }
+  .auth-tabs { gap: 8px; }
+  .role-toggle { grid-template-columns: 1fr; }
+  .countdown-number { font-size: 44px; }
+  .stats { gap: 6px; }
+  .chip { font-size: 11px; padding: 3px 8px; }
+  .chip-total { font-size: 12px; padding: 4px 10px; }
+  .card-head h2 { font-size: 18px; }
 }
 
 /* Forms */
@@ -476,6 +553,10 @@ input[type="checkbox"].task-check {
   letter-spacing: 0.5px;
   color: var(--maroon);
 }
+.auth-app-title.brand-logo {
+  font-size: 46px;
+  letter-spacing: 2px;
+}
 .auth-app-sub {
   margin: 2px 0 0;
   font-size: 13px;
@@ -664,7 +745,7 @@ input[type="checkbox"].task-check {
 .event-card .auth-diamond { background: #c9a04a; }
 .event-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 14px;
   margin-top: 8px;
 }

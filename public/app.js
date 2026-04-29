@@ -430,7 +430,6 @@
 
     document.getElementById('appTitle').textContent = event.title;
     document.getElementById('appTagline').textContent = event.tagline;
-    document.getElementById('appOm').textContent = event.icon;
     document.getElementById('muhurthamSectionTitle').textContent = event.sectionTitle;
 
     ALL_FIELDS.forEach(function (f) {

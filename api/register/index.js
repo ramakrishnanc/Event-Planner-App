@@ -1,27 +1,24 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getPool } = require('../shared/db');
+const { getPool, sql } = require('../shared/db');
 
 var ALLOWED_VENDOR_CATEGORIES = [
   'caterer', 'photographer', 'priest', 'decorator',
   'makeup', 'venue', 'entertainment', 'other'
 ];
 
-var schemaCache = null;
 async function detectSchema(pool) {
-  if (schemaCache) return schemaCache;
   var result = await pool.request().query(
     "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Users'"
   );
   var cols = {};
   result.recordset.forEach(function (r) { cols[r.COLUMN_NAME.toLowerCase()] = true; });
-  schemaCache = {
+  return {
     hasRole: !!cols['role'],
     hasVendorCategory: !!cols['vendor_category'],
     hasVendorPhone: !!cols['vendor_phone'],
     hasVendorCity: !!cols['vendor_city']
   };
-  return schemaCache;
 }
 
 module.exports = async function (context, req) {
@@ -59,7 +56,7 @@ module.exports = async function (context, req) {
     var schema = await detectSchema(pool);
 
     var existing = await pool.request()
-      .input('email', email)
+      .input('email', sql.NVarChar(320), email)
       .query('SELECT id FROM Users WHERE email = @email');
 
     if (existing.recordset.length > 0) {
@@ -73,33 +70,46 @@ module.exports = async function (context, req) {
     var cols = ['id', 'name', 'email', 'password_hash'];
     var params = ['@id', '@name', '@email', '@passwordHash'];
     var request = pool.request()
-      .input('id', id)
-      .input('name', name)
-      .input('email', email)
-      .input('passwordHash', passwordHash);
+      .input('id', sql.NVarChar(50), id)
+      .input('name', sql.NVarChar(200), name)
+      .input('email', sql.NVarChar(320), email)
+      .input('passwordHash', sql.NVarChar(200), passwordHash);
 
     if (schema.hasRole) {
       cols.push('role'); params.push('@role');
-      request.input('role', role);
+      request.input('role', sql.NVarChar(20), role);
     }
     if (schema.hasVendorCategory) {
       cols.push('vendor_category'); params.push('@vendorCategory');
-      request.input('vendorCategory', vendorCategory || null);
+      request.input('vendorCategory', sql.NVarChar(50), vendorCategory);
     }
     if (schema.hasVendorPhone) {
       cols.push('vendor_phone'); params.push('@vendorPhone');
-      request.input('vendorPhone', vendorPhone || null);
+      request.input('vendorPhone', sql.NVarChar(50), vendorPhone);
     }
     if (schema.hasVendorCity) {
       cols.push('vendor_city'); params.push('@vendorCity');
-      request.input('vendorCity', vendorCity || null);
+      request.input('vendorCity', sql.NVarChar(100), vendorCity);
     }
 
     var insertSql = 'INSERT INTO Users (' + cols.join(', ') + ') VALUES (' + params.join(', ') + ')';
-    await request.query(insertSql);
 
-    if (role === 'vendor' && (!schema.hasRole || !schema.hasVendorCategory)) {
-      context.log.warn('Vendor registered but Users table is missing role/vendor columns; vendor data not persisted.');
+    try {
+      await request.query(insertSql);
+    } catch (insertErr) {
+      // If the failure is because the schema still doesn't have role/vendor columns
+      // (e.g. extension hasn't migrated yet), retry with the legacy-only insert.
+      if (role === 'vendor' && /Invalid column name/i.test(insertErr.message || '')) {
+        context.log.warn('Vendor insert failed on schema columns — retrying as legacy: ' + insertErr.message);
+        await pool.request()
+          .input('id', sql.NVarChar(50), id)
+          .input('name', sql.NVarChar(200), name)
+          .input('email', sql.NVarChar(320), email)
+          .input('passwordHash', sql.NVarChar(200), passwordHash)
+          .query('INSERT INTO Users (id, name, email, password_hash) VALUES (@id, @name, @email, @passwordHash)');
+      } else {
+        throw insertErr;
+      }
     }
 
     var user = {
@@ -110,7 +120,11 @@ module.exports = async function (context, req) {
 
     context.res = { status: 201, body: { token: token, user: user } };
   } catch (err) {
-    context.log.error('Register error:', err && err.message, err && err.stack);
-    context.res = { status: 500, body: { error: 'Something went wrong. Please try again.' } };
+    var message = (err && err.message) || 'unknown error';
+    context.log.error('Register error:', message, err && err.stack);
+    context.res = {
+      status: 500,
+      body: { error: 'Registration failed: ' + message }
+    };
   }
 };
