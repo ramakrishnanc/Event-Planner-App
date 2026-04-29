@@ -1,21 +1,46 @@
 const jwt = require('jsonwebtoken');
 const { getPool, ensureSchema, sql } = require('../shared/db');
 
-function verifyToken(req) {
-  var auth = req.headers['authorization'] || req.headers['Authorization'] || '';
-  var token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) return null;
+function readHeader(req, name) {
+  if (!req || !req.headers) return '';
+  // Functions v3 (object with lowercase keys)
+  var h = req.headers;
+  if (typeof h.get === 'function') {
+    return h.get(name) || h.get(name.toLowerCase()) || h.get(name.toUpperCase()) || '';
+  }
+  return h[name.toLowerCase()] || h[name] || h[name.toUpperCase()] || '';
+}
+
+function verifyToken(req, log) {
+  var auth = readHeader(req, 'authorization') || readHeader(req, 'Authorization');
+  if (!auth) {
+    if (log) log('verifyToken: no authorization header');
+    return null;
+  }
+  var token = auth.indexOf('Bearer ') === 0 ? auth.slice(7) : auth;
+  if (!token) {
+    if (log) log('verifyToken: empty token in header');
+    return null;
+  }
+  if (!process.env.JWT_SECRET) {
+    if (log) log('verifyToken: JWT_SECRET is not configured on the server');
+    return null;
+  }
   try {
     return jwt.verify(token, process.env.JWT_SECRET);
   } catch (e) {
+    if (log) log('verifyToken: JWT verify failed — ' + e.message);
     return null;
   }
 }
 
 module.exports = async function (context, req) {
-  var user = verifyToken(req);
+  var user = verifyToken(req, function (m) { context.log(m); });
   if (!user) {
-    context.res = { status: 401, body: { error: 'Unauthorised.' } };
+    context.res = {
+      status: 401,
+      body: { error: 'Your session is invalid. Please sign in again.' }
+    };
     return;
   }
 
@@ -49,8 +74,6 @@ module.exports = async function (context, req) {
         context.res = { status: 400, body: { error: 'Request body is required.' } };
         return;
       }
-      // Azure Functions auto-parses JSON when content-type is application/json,
-      // but if it arrives as a string we still want to round-trip cleanly.
       var payload = typeof body === 'string' ? body : JSON.stringify(body);
       if (!payload || payload === 'null') {
         context.res = { status: 400, body: { error: 'Request body is empty.' } };

@@ -39,14 +39,21 @@
     if (body !== undefined && body !== null) opts.body = JSON.stringify(body);
     return fetch('/api/' + path, opts).then(function (res) {
       return res.text().then(function (text) {
-        var data = {};
+        var data = null;
         if (text) {
           try { data = JSON.parse(text); }
           catch (e) {
-            throw new Error('Server returned an unexpected response (' + res.status + '). ' + (text.slice(0, 120) || ''));
+            var perr = new Error('Server returned an unexpected response (' + res.status + '). ' + (text.slice(0, 120) || ''));
+            perr.status = res.status;
+            throw perr;
           }
         }
-        if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+        if (!res.ok) {
+          var msg = (data && data.error) || ('Request failed (' + res.status + ')');
+          var err = new Error(msg);
+          err.status = res.status;
+          throw err;
+        }
         return data;
       });
     });
@@ -55,12 +62,18 @@
   function getToken() { return localStorage.getItem('gp-jwt'); }
   function isTokenExpired(token) {
     try {
-      var payload = JSON.parse(atob(token.split('.')[1]));
+      var part = token.split('.')[1];
+      // JWTs use base64URL — convert to standard base64 before atob.
+      part = part.replace(/-/g, '+').replace(/_/g, '/');
+      while (part.length % 4) part += '=';
+      var payload = JSON.parse(atob(part));
+      if (!payload.exp) return false; // no exp claim — treat as long-lived
       return payload.exp * 1000 < Date.now();
     } catch (e) { return true; }
   }
 
   var GP_SESSION_KEY = 'gp-session';
+  var GP_OFFLINE_KEY = 'gp-offline-store';
 
   var ALL_FIELDS = ['date', 'time', 'nakshatra', 'venue', 'priest', 'honoree', 'theme', 'notes'];
 
@@ -442,15 +455,63 @@
     }, 1800);
   }
 
+  function backupOffline(serialised) {
+    try { localStorage.setItem(GP_OFFLINE_KEY, serialised); } catch (e) {}
+  }
+  function clearOffline() {
+    try { localStorage.removeItem(GP_OFFLINE_KEY); } catch (e) {}
+  }
+  function getOffline() {
+    try { return localStorage.getItem(GP_OFFLINE_KEY); } catch (e) { return null; }
+  }
+
+  function attemptPut(serialised) {
+    return fetch('/api/data', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getToken()
+      },
+      body: serialised
+    }).then(function (res) {
+      return res.text().then(function (text) {
+        var parsed = null;
+        if (text) { try { parsed = JSON.parse(text); } catch (e) {} }
+        if (!res.ok) {
+          var err = new Error((parsed && parsed.error) || ('Request failed (' + res.status + ')'));
+          err.status = res.status;
+          throw err;
+        }
+        return parsed;
+      });
+    });
+  }
+
+  function saveWithRetry(serialised, attempt) {
+    attempt = attempt || 1;
+    return attemptPut(serialised).catch(function (err) {
+      // Auth errors won't get better with retries.
+      if (err.status === 401 || err.status === 403) throw err;
+      // Client-side errors (4xx) won't get better with retries either.
+      if (err.status && err.status >= 400 && err.status < 500) throw err;
+      if (attempt >= 4) throw err;
+      var delay = 400 * Math.pow(2, attempt - 1); // 400, 800, 1600 ms
+      return new Promise(function (resolve) {
+        setTimeout(function () { resolve(saveWithRetry(serialised, attempt + 1)); }, delay);
+      });
+    });
+  }
+
   function performSave() {
     if (!getToken()) return Promise.resolve();
     var serialised = JSON.stringify(store);
-    if (serialised === lastSerialised) return Promise.resolve(); // nothing changed
+    if (serialised === lastSerialised) return Promise.resolve();
     setSaveStatus('saving', 'Saving…');
-    var body = store;
-    saveInFlight = apiCall('PUT', 'data', body, getToken())
+    backupOffline(serialised); // safety net while save is in flight
+    saveInFlight = saveWithRetry(serialised)
       .then(function () {
         lastSerialised = serialised;
+        clearOffline();
         saveInFlight = null;
         if (pendingSave) {
           pendingSave = false;
@@ -460,14 +521,16 @@
       })
       .catch(function (err) {
         saveInFlight = null;
-        var msg = (err && err.message) || 'Save failed';
-        if (/401|Unauthor/i.test(msg)) {
+        console.error('Save failed:', err);
+        if (err.status === 401 || err.status === 403) {
           setSaveStatus('error', 'Session expired');
           alert('Your session has expired. Please sign in again to keep your data saved.');
           performLogout();
         } else {
-          setSaveStatus('error', 'Save failed');
-          console.error('Save failed:', err);
+          setSaveStatus('error', 'Save failed — will retry');
+          setTimeout(function () {
+            if (!saveInFlight && JSON.stringify(store) !== lastSerialised) performSave();
+          }, 5000);
         }
       });
     return saveInFlight;
@@ -496,18 +559,53 @@
       }
       lastSerialised = JSON.stringify(store);
       dataLoaded = true;
+
+      // If there's a local-only backup that's newer than what came back from server,
+      // prefer the local copy and try to push it up.
+      var offline = getOffline();
+      if (offline && offline !== lastSerialised) {
+        try {
+          var local = JSON.parse(offline);
+          if (local && local.events) {
+            store = local;
+            store.events.forEach(ensureEventArrays);
+            scheduleSave();
+            console.log('Restored local backup of unsaved changes.');
+          }
+        } catch (e) { /* ignore */ }
+      }
+
       if (migrated) scheduleSave();
     }).catch(function (err) {
       console.error('loadStore failed:', err);
-      var msg = (err && err.message) || '';
-      if (/401|Unauthor/i.test(msg)) {
+      var status = err && err.status;
+      if (status === 401 || status === 403) {
+        // Token rejected — drop the broken session so the user can sign in again.
         performLogout();
-      } else {
-        setSaveStatus('error', 'Load failed');
+        setAuthError('loginError', 'Your session expired. Please sign in again.');
+        return;
       }
-      store = { events: [], bookings: [] };
-      lastSerialised = '';
+      // Fall back to offline backup if present so the user keeps their data on screen.
+      var offline = getOffline();
+      if (offline) {
+        try {
+          var local = JSON.parse(offline);
+          if (local && local.events) {
+            store = local;
+            store.events.forEach(ensureEventArrays);
+            lastSerialised = '';
+            console.warn('Server load failed; using local backup.');
+          }
+        } catch (e) {
+          store = { events: [], bookings: [] };
+          lastSerialised = '';
+        }
+      } else {
+        store = { events: [], bookings: [] };
+        lastSerialised = '';
+      }
       dataLoaded = true;
+      setSaveStatus('error', 'Load failed');
     });
   }
 
