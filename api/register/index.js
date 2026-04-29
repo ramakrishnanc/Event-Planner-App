@@ -1,25 +1,11 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getPool, sql } = require('../shared/db');
+const { getPool, ensureSchema, sql } = require('../shared/db');
 
 var ALLOWED_VENDOR_CATEGORIES = [
   'caterer', 'photographer', 'priest', 'decorator',
   'makeup', 'venue', 'entertainment', 'other'
 ];
-
-async function detectSchema(pool) {
-  var result = await pool.request().query(
-    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Users'"
-  );
-  var cols = {};
-  result.recordset.forEach(function (r) { cols[r.COLUMN_NAME.toLowerCase()] = true; });
-  return {
-    hasRole: !!cols['role'],
-    hasVendorCategory: !!cols['vendor_category'],
-    hasVendorPhone: !!cols['vendor_phone'],
-    hasVendorCity: !!cols['vendor_city']
-  };
-}
 
 module.exports = async function (context, req) {
   var body = req.body || {};
@@ -53,12 +39,11 @@ module.exports = async function (context, req) {
 
   try {
     var pool = await getPool();
-    var schema = await detectSchema(pool);
+    await ensureSchema(pool, context.log);
 
     var existing = await pool.request()
       .input('email', sql.NVarChar(320), email)
       .query('SELECT id FROM Users WHERE email = @email');
-
     if (existing.recordset.length > 0) {
       context.res = { status: 409, body: { error: 'An account with this email already exists.' } };
       return;
@@ -67,50 +52,19 @@ module.exports = async function (context, req) {
     var passwordHash = await bcrypt.hash(pin, 10);
     var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-    var cols = ['id', 'name', 'email', 'password_hash'];
-    var params = ['@id', '@name', '@email', '@passwordHash'];
-    var request = pool.request()
+    await pool.request()
       .input('id', sql.NVarChar(50), id)
       .input('name', sql.NVarChar(200), name)
       .input('email', sql.NVarChar(320), email)
-      .input('passwordHash', sql.NVarChar(200), passwordHash);
-
-    if (schema.hasRole) {
-      cols.push('role'); params.push('@role');
-      request.input('role', sql.NVarChar(20), role);
-    }
-    if (schema.hasVendorCategory) {
-      cols.push('vendor_category'); params.push('@vendorCategory');
-      request.input('vendorCategory', sql.NVarChar(50), vendorCategory);
-    }
-    if (schema.hasVendorPhone) {
-      cols.push('vendor_phone'); params.push('@vendorPhone');
-      request.input('vendorPhone', sql.NVarChar(50), vendorPhone);
-    }
-    if (schema.hasVendorCity) {
-      cols.push('vendor_city'); params.push('@vendorCity');
-      request.input('vendorCity', sql.NVarChar(100), vendorCity);
-    }
-
-    var insertSql = 'INSERT INTO Users (' + cols.join(', ') + ') VALUES (' + params.join(', ') + ')';
-
-    try {
-      await request.query(insertSql);
-    } catch (insertErr) {
-      // If the failure is because the schema still doesn't have role/vendor columns
-      // (e.g. extension hasn't migrated yet), retry with the legacy-only insert.
-      if (role === 'vendor' && /Invalid column name/i.test(insertErr.message || '')) {
-        context.log.warn('Vendor insert failed on schema columns — retrying as legacy: ' + insertErr.message);
-        await pool.request()
-          .input('id', sql.NVarChar(50), id)
-          .input('name', sql.NVarChar(200), name)
-          .input('email', sql.NVarChar(320), email)
-          .input('passwordHash', sql.NVarChar(200), passwordHash)
-          .query('INSERT INTO Users (id, name, email, password_hash) VALUES (@id, @name, @email, @passwordHash)');
-      } else {
-        throw insertErr;
-      }
-    }
+      .input('passwordHash', sql.NVarChar(200), passwordHash)
+      .input('role', sql.NVarChar(20), role)
+      .input('vendorCategory', sql.NVarChar(50), vendorCategory)
+      .input('vendorPhone', sql.NVarChar(50), vendorPhone)
+      .input('vendorCity', sql.NVarChar(100), vendorCity)
+      .query(
+        'INSERT INTO Users (id, name, email, password_hash, role, vendor_category, vendor_phone, vendor_city) ' +
+        'VALUES (@id, @name, @email, @passwordHash, @role, @vendorCategory, @vendorPhone, @vendorCity)'
+      );
 
     var user = {
       id: id, name: name, email: email, role: role,
@@ -122,9 +76,6 @@ module.exports = async function (context, req) {
   } catch (err) {
     var message = (err && err.message) || 'unknown error';
     context.log.error('Register error:', message, err && err.stack);
-    context.res = {
-      status: 500,
-      body: { error: 'Registration failed: ' + message }
-    };
+    context.res = { status: 500, body: { error: 'Registration failed: ' + message } };
   }
 };

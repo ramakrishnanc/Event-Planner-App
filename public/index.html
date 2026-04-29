@@ -41,6 +41,18 @@
           </div>
         </div>
         <button type="submit" class="btn-primary btn-block">Sign in</button>
+        <button type="button" class="link-btn" id="forgotPinLink">Forgot PIN?</button>
+      </form>
+
+      <form id="forgotPinForm" class="auth-form hidden">
+        <div class="auth-error hidden" id="forgotPinError"></div>
+        <p class="auth-hint">Enter your email and we'll send you a new 4-digit PIN.</p>
+        <div class="auth-field">
+          <label for="forgotPinEmail">Email</label>
+          <input type="email" id="forgotPinEmail" placeholder="you@example.com" required autocomplete="email" inputmode="email" />
+        </div>
+        <button type="submit" class="btn-primary btn-block">Email me a new PIN</button>
+        <button type="button" class="link-btn" id="forgotPinCancel">&larr; Back to sign in</button>
       </form>
 
       <form id="registerForm" class="auth-form hidden">
@@ -303,6 +315,33 @@
         </form>
         <ul class="list" id="taskList"></ul>
         <p class="empty hidden" id="taskEmpty">No tasks yet.</p>
+      </section>
+
+      <section class="card" id="vendorsSection">
+        <div class="card-head">
+          <h2>Vendors</h2>
+          <span class="chip chip-total"><span id="vendorCount">0</span></span>
+        </div>
+        <form id="planVendorForm" class="stacked-form">
+          <input type="text" id="pvName" placeholder="Vendor / business name" required />
+          <div class="row-2">
+            <select id="pvCategory">
+              <option value="caterer">Caterer</option>
+              <option value="photographer">Photographer</option>
+              <option value="priest">Priest</option>
+              <option value="decorator">Decorator</option>
+              <option value="makeup">Makeup Artist</option>
+              <option value="venue">Venue</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="other">Other</option>
+            </select>
+            <input type="tel" id="pvPhone" placeholder="Phone" inputmode="tel" autocomplete="tel" />
+          </div>
+          <input type="text" id="pvNotes" placeholder="Notes (optional)" />
+          <button type="submit" class="btn-primary btn-block">Add vendor</button>
+        </form>
+        <ul class="list vendor-list" id="planVendorList"></ul>
+        <p class="empty hidden" id="planVendorEmpty">No vendors added yet.</p>
       </section>
 
       <section class="card" id="expensesSection">

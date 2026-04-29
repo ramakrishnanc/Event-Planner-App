@@ -61,7 +61,6 @@
   }
 
   var GP_SESSION_KEY = 'gp-session';
-  var GP_VENDOR_EVENTS_KEY = 'gp-vendor-events';
 
   var ALL_FIELDS = ['date', 'time', 'nakshatra', 'venue', 'priest', 'honoree', 'theme', 'notes'];
 
@@ -196,20 +195,69 @@
   var tabRegister = $('tabRegister');
   var loginFormEl = $('loginForm');
   var registerFormEl = $('registerForm');
+  var forgotPinFormEl = $('forgotPinForm');
 
-  tabLogin.addEventListener('click', function () {
+  function showLoginTab() {
     tabLogin.classList.add('auth-tab-active');
     tabRegister.classList.remove('auth-tab-active');
     loginFormEl.classList.remove('hidden');
     registerFormEl.classList.add('hidden');
+    forgotPinFormEl.classList.add('hidden');
     clearAuthError('loginError');
-  });
+  }
+
+  tabLogin.addEventListener('click', showLoginTab);
   tabRegister.addEventListener('click', function () {
     tabRegister.classList.add('auth-tab-active');
     tabLogin.classList.remove('auth-tab-active');
     registerFormEl.classList.remove('hidden');
     loginFormEl.classList.add('hidden');
+    forgotPinFormEl.classList.add('hidden');
     clearAuthError('registerError');
+  });
+
+  $('forgotPinLink').addEventListener('click', function () {
+    loginFormEl.classList.add('hidden');
+    registerFormEl.classList.add('hidden');
+    forgotPinFormEl.classList.remove('hidden');
+    clearAuthError('forgotPinError');
+    var emailVal = $('loginEmail').value.trim();
+    if (emailVal) $('forgotPinEmail').value = emailVal;
+    setTimeout(function () { $('forgotPinEmail').focus(); }, 0);
+  });
+  $('forgotPinCancel').addEventListener('click', showLoginTab);
+
+  forgotPinFormEl.addEventListener('submit', function (e) {
+    e.preventDefault();
+    clearAuthError('forgotPinError');
+    var email = $('forgotPinEmail').value.trim();
+    if (!email) {
+      setAuthError('forgotPinError', 'Please enter your email.');
+      return;
+    }
+    var btn = forgotPinFormEl.querySelector('button[type="submit"]');
+    setBusy(btn, true, 'Sending…', 'Email me a new PIN');
+    apiCall('POST', 'forgotPin', { email: email })
+      .then(function (res) {
+        setBusy(btn, false, 'Sending…', 'Email me a new PIN');
+        var msg = (res && res.message) || 'If that email is registered, a new PIN is on its way.';
+        var el = $('forgotPinError');
+        el.textContent = msg;
+        el.classList.remove('hidden');
+        el.classList.remove('auth-error');
+        el.classList.add('auth-success');
+        $('forgotPinEmail').value = '';
+        setTimeout(function () {
+          el.classList.add('hidden');
+          el.classList.remove('auth-success');
+          el.classList.add('auth-error');
+          showLoginTab();
+        }, 3500);
+      })
+      .catch(function (err) {
+        setBusy(btn, false, 'Sending…', 'Email me a new PIN');
+        setAuthError('forgotPinError', err.message);
+      });
   });
 
   // Role toggle
@@ -343,9 +391,18 @@
       guests: [],
       tasks: [],
       expenses: [],
+      vendors: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+  }
+
+  function ensureEventArrays(ev) {
+    if (!ev.guests) ev.guests = [];
+    if (!ev.tasks) ev.tasks = [];
+    if (!ev.expenses) ev.expenses = [];
+    if (!ev.vendors) ev.vendors = [];
+    return ev;
   }
 
   var store = { events: [] };
@@ -356,10 +413,12 @@
   function loadStore() {
     return apiCall('GET', 'data', null, getToken()).then(function (data) {
       if (!data) {
-        store = { events: [] };
+        store = { events: [], bookings: [] };
       } else if (data.events && Array.isArray(data.events)) {
         store = data;
         if (!store.events) store.events = [];
+        if (!store.bookings) store.bookings = [];
+        store.events.forEach(ensureEventArrays);
       } else if (data.muhurtham || data.guests || data.tasks || data.expenses) {
         // Legacy single-event blob — migrate.
         var legacy = defaultEventState('gruhapravesham');
@@ -367,14 +426,14 @@
         legacy.guests = data.guests || [];
         legacy.tasks = data.tasks || [];
         legacy.expenses = data.expenses || [];
-        store = { events: [legacy] };
+        store = { events: [legacy], bookings: [] };
         scheduleSave();
       } else {
-        store = { events: [] };
+        store = { events: data.events || [], bookings: data.bookings || [] };
       }
       dataLoaded = true;
     }).catch(function () {
-      store = { events: [] };
+      store = { events: [], bookings: [] };
       dataLoaded = true;
     });
   }
@@ -571,6 +630,7 @@
   function openEvent(id) {
     var ev = findEvent(id);
     if (!ev) return;
+    ensureEventArrays(ev);
     currentEventRecord = ev;
     activeEventId = id;
     currentEvent = findType(ev.typeId);
@@ -590,6 +650,7 @@
     renderCountdown();
     renderGuests();
     renderTasks();
+    renderEventVendors();
     renderExpenses();
   }
 
@@ -796,6 +857,90 @@
     renderTasks();
   });
 
+  // Vendors (per-event)
+  function renderEventVendors() {
+    var list = $('planVendorList');
+    var empty = $('planVendorEmpty');
+    list.innerHTML = '';
+    var vendors = currentEventRecord.vendors || [];
+    vendors.forEach(function (v) {
+      var li = document.createElement('li');
+      li.className = 'list-item';
+
+      var row = document.createElement('div');
+      row.className = 'vendor-row';
+
+      var meta = document.createElement('div');
+      meta.className = 'vendor-meta';
+      var name = document.createElement('span');
+      name.className = 'vendor-name';
+      name.textContent = v.name;
+      var cat = document.createElement('span');
+      cat.className = 'vendor-cat';
+      cat.textContent = VENDOR_CATEGORY_LABELS[v.category] || v.category || 'Vendor';
+      meta.appendChild(name);
+      meta.appendChild(cat);
+
+      if (v.phone) {
+        var phoneNum = document.createElement('span');
+        phoneNum.className = 'vendor-notes';
+        phoneNum.textContent = v.phone;
+        meta.appendChild(phoneNum);
+      }
+      if (v.notes) {
+        var notes = document.createElement('span');
+        notes.className = 'vendor-notes';
+        notes.textContent = v.notes;
+        meta.appendChild(notes);
+      }
+
+      row.appendChild(meta);
+
+      if (v.phone) {
+        var call = document.createElement('a');
+        call.className = 'call-btn';
+        call.href = 'tel:' + v.phone.replace(/[^+0-9]/g, '');
+        call.textContent = 'Call';
+        row.appendChild(call);
+      } else {
+        var noCall = document.createElement('span');
+        noCall.className = 'call-btn disabled';
+        noCall.textContent = 'No phone';
+        row.appendChild(noCall);
+      }
+
+      var del = document.createElement('button');
+      del.className = 'icon-btn'; del.type = 'button'; del.title = 'Remove'; del.textContent = '✕';
+      del.addEventListener('click', function () {
+        currentEventRecord.vendors = currentEventRecord.vendors.filter(function (x) { return x.id !== v.id; });
+        currentEventRecord.updatedAt = new Date().toISOString();
+        scheduleSave();
+        renderEventVendors();
+      });
+      row.appendChild(del);
+
+      li.appendChild(row);
+      list.appendChild(li);
+    });
+    $('vendorCount').textContent = vendors.length;
+    empty.classList.toggle('hidden', vendors.length > 0);
+  }
+
+  $('planVendorForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('pvName').value.trim();
+    var category = $('pvCategory').value;
+    var phone = $('pvPhone').value.trim();
+    var notes = $('pvNotes').value.trim();
+    if (!name) return;
+    if (!currentEventRecord.vendors) currentEventRecord.vendors = [];
+    currentEventRecord.vendors.push({ id: uid(), name: name, category: category, phone: phone, notes: notes });
+    currentEventRecord.updatedAt = new Date().toISOString();
+    scheduleSave();
+    $('pvName').value = ''; $('pvPhone').value = ''; $('pvNotes').value = '';
+    renderEventVendors();
+  });
+
   // Expenses
   function renderExpenses() {
     var body = $('expenseBody');
@@ -854,23 +999,15 @@
     if (currentEventRecord) renderCountdown();
   }, 60 * 1000);
 
-  // ── Vendor home (unchanged behaviour, simpler chrome) ────
-  function getVendorEvents() {
-    try { return JSON.parse(localStorage.getItem(GP_VENDOR_EVENTS_KEY)) || []; }
-    catch (e) { return []; }
-  }
-  function saveVendorEvents(list) {
-    localStorage.setItem(GP_VENDOR_EVENTS_KEY, JSON.stringify(list));
-  }
-
-  function renderVendorEvents() {
+  // ── Vendor home (server-side bookings keyed by user_id) ──
+  function renderVendorBookings() {
     var list = $('vendorEventList');
     var empty = $('vendorEventEmpty');
     list.innerHTML = '';
-    var events = getVendorEvents().slice().sort(function (a, b) {
+    var bookings = (store.bookings || []).slice().sort(function (a, b) {
       return (a.date || '').localeCompare(b.date || '');
     });
-    events.forEach(function (ev) {
+    bookings.forEach(function (ev) {
       var li = document.createElement('li');
       li.className = 'list-item';
       var main = document.createElement('div'); main.className = 'main';
@@ -883,14 +1020,15 @@
       var del = document.createElement('button');
       del.className = 'icon-btn'; del.type = 'button'; del.title = 'Remove'; del.textContent = '✕';
       del.addEventListener('click', function () {
-        var remaining = getVendorEvents().filter(function (x) { return x.id !== ev.id; });
-        saveVendorEvents(remaining); renderVendorEvents();
+        store.bookings = (store.bookings || []).filter(function (x) { return x.id !== ev.id; });
+        scheduleSave();
+        renderVendorBookings();
       });
       li.appendChild(main); li.appendChild(del);
       list.appendChild(li);
     });
-    $('vendorEventCount').textContent = events.length;
-    empty.classList.toggle('hidden', events.length > 0);
+    $('vendorEventCount').textContent = bookings.length;
+    empty.classList.toggle('hidden', bookings.length > 0);
   }
 
   var vendorFormBound = false;
@@ -904,11 +1042,11 @@
       var date = $('veDate').value;
       var venue = $('veVenue').value.trim();
       if (!client || !date) return;
-      var events = getVendorEvents();
-      events.push({ id: uid(), client: client, type: type, date: date, venue: venue });
-      saveVendorEvents(events);
+      if (!store.bookings) store.bookings = [];
+      store.bookings.push({ id: uid(), client: client, type: type, date: date, venue: venue });
+      scheduleSave();
       $('veClient').value = ''; $('veDate').value = ''; $('veVenue').value = '';
-      renderVendorEvents();
+      renderVendorBookings();
     });
   }
 
@@ -917,6 +1055,9 @@
     $('homeScreen').classList.add('hidden');
     $('appShell').classList.add('hidden');
     $('vendorHome').classList.remove('hidden');
+    var allThemes = EVENT_TYPES.map(function (e) { return e.themeClass; });
+    document.body.classList.remove.apply(document.body.classList, allThemes);
+
     var category = session.vendorCategory || '';
     var label = VENDOR_CATEGORY_LABELS[category] || 'Vendor';
     $('vendorGreeting').textContent = 'Hi ' + (session.name || '').split(' ')[0];
@@ -927,7 +1068,11 @@
     $('vpPhone').textContent = session.vendorPhone || '—';
     $('vpCity').textContent = session.vendorCity || '—';
     bindVendorForm();
-    renderVendorEvents();
+
+    var ensureLoaded = dataLoaded ? Promise.resolve() : loadStore();
+    ensureLoaded.then(function () {
+      renderVendorBookings();
+    });
   }
 
   // ── Restore session on page load ─────────────────────────

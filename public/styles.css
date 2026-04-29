@@ -340,6 +340,36 @@ input::placeholder, textarea::placeholder { color: #b09b86; }
 }
 .icon-btn:hover { color: var(--danger); background: #fdecea; }
 
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--maroon);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  align-self: center;
+}
+.link-btn:hover { color: var(--saffron); }
+
+.auth-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.auth-success {
+  background: #e3f2e8;
+  color: var(--ok);
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--ok);
+}
+
 .auth-foot-text {
   margin: 18px 0 0;
   text-align: center;
@@ -699,6 +729,70 @@ input[type="checkbox"].task-check {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+}
+
+/* Vendor list — planner side */
+.vendor-list .list-item {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
+}
+.vendor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.vendor-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.vendor-name {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 14px;
+}
+.vendor-cat {
+  font-size: 11px;
+  color: var(--maroon);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 600;
+}
+.vendor-notes {
+  font-size: 12px;
+  color: var(--muted);
+}
+.call-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ok);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.call-btn:hover { filter: brightness(1.05); }
+.call-btn:active { filter: brightness(0.95); }
+.call-btn::before {
+  content: '📞';
+  font-size: 14px;
+}
+.call-btn.disabled {
+  background: var(--line-2);
+  color: var(--muted);
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* =========================================================

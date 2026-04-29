@@ -1,20 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getPool, sql } = require('../shared/db');
-
-async function detectSchema(pool) {
-  var result = await pool.request().query(
-    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Users'"
-  );
-  var cols = {};
-  result.recordset.forEach(function (r) { cols[r.COLUMN_NAME.toLowerCase()] = true; });
-  return {
-    hasRole: !!cols['role'],
-    hasVendorCategory: !!cols['vendor_category'],
-    hasVendorPhone: !!cols['vendor_phone'],
-    hasVendorCity: !!cols['vendor_city']
-  };
-}
+const { getPool, ensureSchema, sql } = require('../shared/db');
 
 module.exports = async function (context, req) {
   var body = req.body || {};
@@ -28,27 +14,24 @@ module.exports = async function (context, req) {
 
   try {
     var pool = await getPool();
-    var schema = await detectSchema(pool);
-
-    var selectCols = ['id', 'name', 'email', 'password_hash'];
-    if (schema.hasRole) selectCols.push('role');
-    if (schema.hasVendorCategory) selectCols.push('vendor_category');
-    if (schema.hasVendorPhone) selectCols.push('vendor_phone');
-    if (schema.hasVendorCity) selectCols.push('vendor_city');
+    await ensureSchema(pool, context.log);
 
     var result = await pool.request()
       .input('email', sql.NVarChar(320), email)
-      .query('SELECT ' + selectCols.join(', ') + ' FROM Users WHERE email = @email');
+      .query(
+        'SELECT id, name, email, password_hash, role, vendor_category, vendor_phone, vendor_city ' +
+        'FROM Users WHERE email = @email'
+      );
 
     var found = result.recordset[0];
     if (!found) {
-      context.res = { status: 401, body: { error: 'Incorrect email or password.' } };
+      context.res = { status: 401, body: { error: 'Incorrect email or PIN.' } };
       return;
     }
 
     var valid = await bcrypt.compare(pin, found.password_hash);
     if (!valid) {
-      context.res = { status: 401, body: { error: 'Incorrect email or password.' } };
+      context.res = { status: 401, body: { error: 'Incorrect email or PIN.' } };
       return;
     }
 
