@@ -136,6 +136,7 @@
       <div class="page-header-inner">
         <span class="brand-logo brand-logo-mini">Evento</span>
         <div class="header-actions">
+          <span class="save-status" id="saveStatusHome" aria-live="polite"></span>
           <span id="userGreeting" class="user-greeting"></span>
           <button id="logoutBtn" class="btn-ghost btn-sm" type="button">Sign out</button>
         </div>
@@ -171,6 +172,7 @@
       <div class="page-header-inner">
         <span class="brand-logo brand-logo-mini">Evento</span>
         <div class="header-actions">
+          <span class="save-status" id="saveStatusVendor" aria-live="polite"></span>
           <span id="vendorGreeting" class="user-greeting"></span>
           <button id="vendorLogoutBtn" class="btn-ghost btn-sm" type="button">Sign out</button>
         </div>
@@ -225,7 +227,10 @@
       <div class="page-header-inner">
         <button id="backToHomeBtn" class="btn-ghost btn-sm" type="button" aria-label="Back to your events">&larr; My Events</button>
         <span class="brand-logo brand-logo-mini" id="appOm">Evento</span>
-        <button id="logoutBtn2" class="btn-ghost btn-sm" type="button">Sign out</button>
+        <div class="header-actions">
+          <span class="save-status" id="saveStatusPlanner" aria-live="polite"></span>
+          <button id="logoutBtn2" class="btn-ghost btn-sm" type="button">Sign out</button>
+        </div>
       </div>
     </header>
 

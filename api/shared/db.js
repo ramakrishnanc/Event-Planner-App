@@ -53,6 +53,29 @@ async function ensureSchema(pool, log) {
       statements.push('ALTER TABLE Users ADD pin NVARCHAR(10) NULL');
     }
 
+    // PlannerData table: ensure it exists with NVARCHAR(MAX) data column.
+    var pd = await pool.request().query(
+      "SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'PlannerData'"
+    );
+    if (pd.recordset.length === 0) {
+      statements.push(
+        'CREATE TABLE PlannerData (' +
+        '  user_id NVARCHAR(50) NOT NULL PRIMARY KEY,' +
+        '  data NVARCHAR(MAX) NOT NULL,' +
+        '  updated_at DATETIME2 NOT NULL DEFAULT GETUTCDATE()' +
+        ')'
+      );
+    } else {
+      var dataCol = null;
+      pd.recordset.forEach(function (r) {
+        if (r.COLUMN_NAME.toLowerCase() === 'data') dataCol = r;
+      });
+      // CHARACTER_MAXIMUM_LENGTH = -1 means NVARCHAR(MAX). Anything else is bounded → upgrade.
+      if (dataCol && dataCol.CHARACTER_MAXIMUM_LENGTH !== -1) {
+        statements.push('ALTER TABLE PlannerData ALTER COLUMN data NVARCHAR(MAX) NOT NULL');
+      }
+    }
+
     for (var i = 0; i < statements.length; i++) {
       try {
         if (log) log('Running migration: ' + statements[i]);

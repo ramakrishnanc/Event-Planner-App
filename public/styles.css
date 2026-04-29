@@ -407,6 +407,22 @@ input::placeholder, textarea::placeholder { color: #b09b86; }
   font-size: 13px;
   color: rgba(255, 248, 231, 0.85);
 }
+
+.save-status {
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 248, 231, 0.85);
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+.save-status.visible { display: inline-flex; }
+.save-status.saving { background: rgba(212, 161, 59, 0.25); color: #fff5d8; }
+.save-status.saved { background: rgba(47, 125, 82, 0.35); color: #d8f4e3; }
+.save-status.error { background: rgba(179, 38, 30, 0.50); color: #ffe6e3; }
 .page-header .btn-ghost {
   color: #fff8e7;
   border-color: rgba(255, 248, 231, 0.35);

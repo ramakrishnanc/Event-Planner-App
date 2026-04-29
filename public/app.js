@@ -359,8 +359,14 @@
 
   // ── Logout ───────────────────────────────────────────────
   function performLogout() {
+    // Best-effort flush of any pending save before we drop the token.
+    unloadFlush();
+    clearTimeout(saveTimer);
     localStorage.removeItem('gp-jwt');
     localStorage.removeItem(GP_SESSION_KEY);
+    lastSerialised = '';
+    dataLoaded = false;
+    store = { events: [], bookings: [] };
     var allThemes = EVENT_TYPES.map(function (e) { return e.themeClass; });
     document.body.classList.remove.apply(document.body.classList, allThemes);
     $('appShell').classList.add('hidden');
@@ -409,9 +415,67 @@
   var activeEventId = null;
   var saveTimer;
   var dataLoaded = false;
+  var saveInFlight = null;
+  var pendingSave = false;
+  var lastSerialised = '';
+
+  function setSaveStatus(state, msg) {
+    var nodes = document.querySelectorAll('.save-status');
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      n.classList.remove('saving', 'saved', 'error', 'visible');
+      if (state) {
+        n.classList.add('visible', state);
+        n.textContent = msg || '';
+      } else {
+        n.textContent = '';
+      }
+    }
+  }
+
+  function flashSaved() {
+    setSaveStatus('saved', 'Saved');
+    setTimeout(function () {
+      // Only clear if still in 'saved' state (don't override later saving/error)
+      var any = document.querySelector('.save-status.saved');
+      if (any) setSaveStatus(null);
+    }, 1800);
+  }
+
+  function performSave() {
+    if (!getToken()) return Promise.resolve();
+    var serialised = JSON.stringify(store);
+    if (serialised === lastSerialised) return Promise.resolve(); // nothing changed
+    setSaveStatus('saving', 'Saving…');
+    var body = store;
+    saveInFlight = apiCall('PUT', 'data', body, getToken())
+      .then(function () {
+        lastSerialised = serialised;
+        saveInFlight = null;
+        if (pendingSave) {
+          pendingSave = false;
+          return performSave();
+        }
+        flashSaved();
+      })
+      .catch(function (err) {
+        saveInFlight = null;
+        var msg = (err && err.message) || 'Save failed';
+        if (/401|Unauthor/i.test(msg)) {
+          setSaveStatus('error', 'Session expired');
+          alert('Your session has expired. Please sign in again to keep your data saved.');
+          performLogout();
+        } else {
+          setSaveStatus('error', 'Save failed');
+          console.error('Save failed:', err);
+        }
+      });
+    return saveInFlight;
+  }
 
   function loadStore() {
     return apiCall('GET', 'data', null, getToken()).then(function (data) {
+      var migrated = false;
       if (!data) {
         store = { events: [], bookings: [] };
       } else if (data.events && Array.isArray(data.events)) {
@@ -420,30 +484,73 @@
         if (!store.bookings) store.bookings = [];
         store.events.forEach(ensureEventArrays);
       } else if (data.muhurtham || data.guests || data.tasks || data.expenses) {
-        // Legacy single-event blob — migrate.
         var legacy = defaultEventState('gruhapravesham');
         legacy.muhurtham = data.muhurtham || legacy.muhurtham;
         legacy.guests = data.guests || [];
         legacy.tasks = data.tasks || [];
         legacy.expenses = data.expenses || [];
         store = { events: [legacy], bookings: [] };
-        scheduleSave();
+        migrated = true;
       } else {
         store = { events: data.events || [], bookings: data.bookings || [] };
       }
+      lastSerialised = JSON.stringify(store);
       dataLoaded = true;
-    }).catch(function () {
+      if (migrated) scheduleSave();
+    }).catch(function (err) {
+      console.error('loadStore failed:', err);
+      var msg = (err && err.message) || '';
+      if (/401|Unauthor/i.test(msg)) {
+        performLogout();
+      } else {
+        setSaveStatus('error', 'Load failed');
+      }
       store = { events: [], bookings: [] };
+      lastSerialised = '';
       dataLoaded = true;
     });
   }
 
   function scheduleSave() {
     clearTimeout(saveTimer);
+    if (saveInFlight) {
+      pendingSave = true; // will chain after current save completes
+      return;
+    }
     saveTimer = setTimeout(function () {
-      apiCall('PUT', 'data', store, getToken()).catch(function () {});
-    }, 700);
+      performSave();
+    }, 500);
   }
+
+  // Force a save right now (used on screen-change and unload).
+  function flushSave() {
+    clearTimeout(saveTimer);
+    if (saveInFlight) return saveInFlight; // current in-flight save will land
+    return performSave();
+  }
+
+  // Unload-time best-effort save with keepalive so the request survives navigation.
+  function unloadFlush() {
+    if (!getToken()) return;
+    var serialised = JSON.stringify(store);
+    if (serialised === lastSerialised) return;
+    try {
+      fetch('/api/data', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + getToken()
+        },
+        body: serialised,
+        keepalive: true
+      });
+    } catch (e) { /* best effort */ }
+  }
+  window.addEventListener('beforeunload', unloadFlush);
+  window.addEventListener('pagehide', unloadFlush);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') unloadFlush();
+  });
 
   function findEvent(id) {
     for (var i = 0; i < store.events.length; i++) {
@@ -582,6 +689,7 @@
   }
 
   $('backToHomeBtn').addEventListener('click', function () {
+    flushSave();
     var session = getSession();
     if (session) showHome(session);
   });
