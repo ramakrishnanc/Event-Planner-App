@@ -1,4 +1,7 @@
-const { getPool, ensureSchema, sql } = require('../shared/db');
+const {
+  getPool, ensureSchema, migrateUserIfNeeded,
+  insertEvent, insertBooking, sql
+} = require('../shared/db');
 
 function readHeader(req, name) {
   if (!req || !req.headers) return '';
@@ -7,6 +10,165 @@ function readHeader(req, name) {
     return h.get(name) || h.get(name.toLowerCase()) || '';
   }
   return h[name.toLowerCase()] || h[name] || '';
+}
+
+async function loadUserStore(pool, userId) {
+  var eventsRes = await pool.request()
+    .input('userId', sql.NVarChar(50), userId)
+    .query(
+      'SELECT id, type_id, name, m_date, m_time, m_nakshatra, m_venue, m_priest, m_honoree, m_theme, m_notes, created_at, updated_at ' +
+      'FROM Events WHERE user_id = @userId'
+    );
+
+  var events = eventsRes.recordset.map(function (r) {
+    return {
+      id: r.id,
+      typeId: r.type_id,
+      name: r.name || '',
+      muhurtham: {
+        date: r.m_date || '',
+        time: r.m_time || '',
+        nakshatra: r.m_nakshatra || '',
+        venue: r.m_venue || '',
+        priest: r.m_priest || '',
+        honoree: r.m_honoree || '',
+        theme: r.m_theme || '',
+        notes: r.m_notes || ''
+      },
+      guests: [],
+      tasks: [],
+      expenses: [],
+      vendors: [],
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null
+    };
+  });
+
+  var byId = {};
+  events.forEach(function (e) { byId[e.id] = e; });
+
+  if (events.length > 0) {
+    var guestsRes = await pool.request()
+      .input('userId', sql.NVarChar(50), userId)
+      .query(
+        'SELECT g.id, g.event_id, g.name, g.[count], g.invited ' +
+        'FROM EventGuests g INNER JOIN Events e ON e.id = g.event_id ' +
+        'WHERE e.user_id = @userId'
+      );
+    guestsRes.recordset.forEach(function (g) {
+      var ev = byId[g.event_id]; if (!ev) return;
+      ev.guests.push({ id: g.id, name: g.name, count: g.count, invited: !!g.invited });
+    });
+
+    var tasksRes = await pool.request()
+      .input('userId', sql.NVarChar(50), userId)
+      .query(
+        'SELECT t.id, t.event_id, t.title, t.due, t.done ' +
+        'FROM EventTasks t INNER JOIN Events e ON e.id = t.event_id ' +
+        'WHERE e.user_id = @userId'
+      );
+    tasksRes.recordset.forEach(function (t) {
+      var ev = byId[t.event_id]; if (!ev) return;
+      ev.tasks.push({ id: t.id, title: t.title, due: t.due || '', done: !!t.done });
+    });
+
+    var expRes = await pool.request()
+      .input('userId', sql.NVarChar(50), userId)
+      .query(
+        'SELECT x.id, x.event_id, x.description, x.amount, x.category ' +
+        'FROM EventExpenses x INNER JOIN Events e ON e.id = x.event_id ' +
+        'WHERE e.user_id = @userId'
+      );
+    expRes.recordset.forEach(function (x) {
+      var ev = byId[x.event_id]; if (!ev) return;
+      ev.expenses.push({
+        id: x.id,
+        description: x.description,
+        amount: Number(x.amount) || 0,
+        category: x.category || ''
+      });
+    });
+
+    var vendorsRes = await pool.request()
+      .input('userId', sql.NVarChar(50), userId)
+      .query(
+        'SELECT v.id, v.event_id, v.name, v.category, v.phone, v.notes ' +
+        'FROM EventVendors v INNER JOIN Events e ON e.id = v.event_id ' +
+        'WHERE e.user_id = @userId'
+      );
+    vendorsRes.recordset.forEach(function (v) {
+      var ev = byId[v.event_id]; if (!ev) return;
+      ev.vendors.push({
+        id: v.id,
+        name: v.name,
+        category: v.category || '',
+        phone: v.phone || '',
+        notes: v.notes || ''
+      });
+    });
+  }
+
+  var bookingsRes = await pool.request()
+    .input('userId', sql.NVarChar(50), userId)
+    .query('SELECT id, client, type, [date], venue FROM VendorBookings WHERE user_id = @userId');
+  var bookings = bookingsRes.recordset.map(function (b) {
+    return {
+      id: b.id,
+      client: b.client,
+      type: b.type || '',
+      date: b.date || '',
+      venue: b.venue || ''
+    };
+  });
+
+  return { events: events, bookings: bookings };
+}
+
+async function saveUserStore(pool, userId, store) {
+  var events = Array.isArray(store && store.events) ? store.events : [];
+  var bookings = Array.isArray(store && store.bookings) ? store.bookings : [];
+
+  var tx = new sql.Transaction(pool);
+  await tx.begin();
+  try {
+    // Wipe and rewrite. Simpler than diffing, and cascade deletes child rows.
+    await new sql.Request(tx)
+      .input('userId', sql.NVarChar(50), userId)
+      .query('DELETE FROM Events WHERE user_id = @userId');
+    await new sql.Request(tx)
+      .input('userId', sql.NVarChar(50), userId)
+      .query('DELETE FROM VendorBookings WHERE user_id = @userId');
+
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      if (!ev || !ev.id) continue;
+      await insertEvent(tx, userId, ev);
+    }
+    for (var j = 0; j < bookings.length; j++) {
+      var b = bookings[j];
+      if (!b || !b.id) continue;
+      await insertBooking(tx, userId, b);
+    }
+
+    // Mirror the JSON to PlannerData so it's still readable as a backup.
+    var payload = JSON.stringify({ events: events, bookings: bookings });
+    await new sql.Request(tx)
+      .input('userId', sql.NVarChar(50), userId)
+      .input('data', sql.NVarChar(sql.MAX), payload)
+      .query(
+        'MERGE PlannerData AS target ' +
+        'USING (SELECT @userId AS user_id, @data AS data) AS source ' +
+        'ON target.user_id = source.user_id ' +
+        'WHEN MATCHED THEN UPDATE SET data = source.data, updated_at = GETUTCDATE() ' +
+        'WHEN NOT MATCHED THEN INSERT (user_id, data) VALUES (source.user_id, source.data);'
+      );
+
+    await tx.commit();
+    return payload.length;
+  } catch (e) {
+    try { await tx.rollback(); } catch (re) {}
+    throw e;
+  }
 }
 
 module.exports = async function (context, req) {
@@ -21,21 +183,16 @@ module.exports = async function (context, req) {
     await ensureSchema(pool, context.log);
 
     if (req.method === 'GET') {
-      var result = await pool.request()
-        .input('userId', sql.NVarChar(50), userId)
-        .query('SELECT data FROM PlannerData WHERE user_id = @userId');
-
-      if (result.recordset.length === 0) {
-        context.res = { status: 200, body: null };
-        return;
-      }
-
-      var raw = result.recordset[0].data;
       try {
-        context.res = { status: 200, body: JSON.parse(raw) };
-      } catch (parseErr) {
-        context.log.error('PlannerData parse error for user ' + userId + ': ' + parseErr.message);
+        await migrateUserIfNeeded(pool, userId, context.log);
+      } catch (mErr) {
+        context.log.error('Migration error for user ' + userId + ': ' + mErr.message);
+      }
+      var store = await loadUserStore(pool, userId);
+      if (store.events.length === 0 && store.bookings.length === 0) {
         context.res = { status: 200, body: null };
+      } else {
+        context.res = { status: 200, body: store };
       }
       return;
     }
@@ -46,24 +203,21 @@ module.exports = async function (context, req) {
         context.res = { status: 400, body: { error: 'Request body is required.' } };
         return;
       }
-      var payload = typeof body === 'string' ? body : JSON.stringify(body);
-      if (!payload || payload === 'null') {
+      var parsed = body;
+      if (typeof body === 'string') {
+        try { parsed = JSON.parse(body); }
+        catch (pe) {
+          context.res = { status: 400, body: { error: 'Request body is not valid JSON.' } };
+          return;
+        }
+      }
+      if (!parsed || typeof parsed !== 'object') {
         context.res = { status: 400, body: { error: 'Request body is empty.' } };
         return;
       }
 
-      await pool.request()
-        .input('userId', sql.NVarChar(50), userId)
-        .input('data', sql.NVarChar(sql.MAX), payload)
-        .query(
-          'MERGE PlannerData AS target ' +
-          'USING (SELECT @userId AS user_id, @data AS data) AS source ' +
-          'ON target.user_id = source.user_id ' +
-          'WHEN MATCHED THEN UPDATE SET data = source.data, updated_at = GETUTCDATE() ' +
-          'WHEN NOT MATCHED THEN INSERT (user_id, data) VALUES (source.user_id, source.data);'
-        );
-
-      context.res = { status: 200, body: { ok: true, bytes: payload.length } };
+      var bytes = await saveUserStore(pool, userId, parsed);
+      context.res = { status: 200, body: { ok: true, bytes: bytes } };
       return;
     }
 
