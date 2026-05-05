@@ -828,11 +828,10 @@
     activeEventId = id;
     currentEvent = findType(ev.typeId);
 
-    findVendorState = { category: '', loading: false, results: [], error: '' };
-
     $('authScreen').classList.add('hidden');
     $('homeScreen').classList.add('hidden');
     $('vendorHome').classList.add('hidden');
+    $('vendorResultsScreen').classList.add('hidden');
     $('appShell').classList.remove('hidden');
 
     applyEventTheme(currentEvent);
@@ -846,7 +845,6 @@
     renderGuests();
     renderTasks();
     renderEventVendors();
-    renderFindVendors();
     renderExpenses();
   }
 
@@ -1121,78 +1119,87 @@
   $('planVendorForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var name = $('pvName').value.trim();
-    var category = $('pvCategory').value;
     var phone = $('pvPhone').value.trim();
     var notes = $('pvNotes').value.trim();
     if (!name) return;
     if (!currentEventRecord.vendors) currentEventRecord.vendors = [];
-    currentEventRecord.vendors.push({ id: uid(), name: name, category: category, phone: phone, notes: notes });
+    currentEventRecord.vendors.push({ id: uid(), name: name, category: '', phone: phone, notes: notes });
     currentEventRecord.updatedAt = new Date().toISOString();
     scheduleSave();
     $('pvName').value = ''; $('pvPhone').value = ''; $('pvNotes').value = '';
     renderEventVendors();
   });
 
-  // Find Vendors (browse registered vendors by category)
-  var findVendorState = { category: '', loading: false, results: [], error: '' };
+  // Find Vendors → dedicated results screen
+  var vendorResultsState = { category: '', vendors: [] };
 
-  function fetchVendors(category) {
-    findVendorState.loading = true;
-    findVendorState.error = '';
-    findVendorState.category = category;
-    renderFindVendors();
+  function showVendorResults(category) {
+    var titleEl = $('vendorResultsTitle');
+    var listEl = $('vendorResultsList');
+    var emptyEl = $('vendorResultsEmpty');
+    var countEl = $('vendorResultsCount');
+
+    titleEl.textContent = (VENDOR_CATEGORY_LABELS[category] || 'Vendors') + ' on Evento';
+    listEl.innerHTML = '';
+    countEl.textContent = '…';
+    emptyEl.textContent = 'Loading vendors…';
+    emptyEl.classList.remove('hidden');
+
+    $('appShell').classList.add('hidden');
+    $('homeScreen').classList.add('hidden');
+    $('vendorResultsScreen').classList.remove('hidden');
+    var session = getSession();
+    if (session) $('vendorResultsGreeting').textContent = 'Hi ' + (session.name || '').split(' ')[0];
+
     var url = '/api/vendors' + (category ? '?category=' + encodeURIComponent(category) : '');
-    return fetch(url, {
-      method: 'GET',
-      headers: { 'x-user-id': getUserId() }
-    }).then(function (res) {
-      return res.text().then(function (text) {
-        var data = null;
-        if (text) { try { data = JSON.parse(text); } catch (e) {} }
-        if (!res.ok) {
-          var msg = (data && data.error) || ('Request failed (' + res.status + ')');
-          throw new Error(msg);
-        }
-        findVendorState.loading = false;
-        findVendorState.results = (data && data.vendors) || [];
-        renderFindVendors();
+    fetch(url, { method: 'GET', headers: { 'x-user-id': getUserId() } })
+      .then(function (res) {
+        return res.text().then(function (text) {
+          var data = null;
+          if (text) { try { data = JSON.parse(text); } catch (e) {} }
+          if (!res.ok) {
+            var msg = (data && data.error) || ('Request failed (' + res.status + ')');
+            throw new Error(msg);
+          }
+          vendorResultsState.category = category;
+          vendorResultsState.vendors = (data && data.vendors) || [];
+          renderVendorResults();
+        });
+      })
+      .catch(function (err) {
+        countEl.textContent = '0';
+        emptyEl.textContent = err.message || 'Failed to load vendors';
+        emptyEl.classList.remove('hidden');
       });
-    }).catch(function (err) {
-      findVendorState.loading = false;
-      findVendorState.results = [];
-      findVendorState.error = err.message || 'Failed to load vendors';
-      renderFindVendors();
-    });
   }
 
-  function renderFindVendors() {
-    var list = $('findVendorList');
-    var empty = $('findVendorEmpty');
-    var count = $('findVendorCount');
-    if (!list) return;
-    list.innerHTML = '';
-    if (findVendorState.loading) {
-      count.textContent = '…';
-      empty.textContent = 'Loading vendors…';
-      empty.classList.remove('hidden');
-      return;
+  function starsHtml(avg) {
+    var v = Math.max(0, Math.min(5, Number(avg) || 0));
+    var s = '';
+    for (var i = 1; i <= 5; i++) {
+      if (v >= i) s += '★';
+      else if (v >= i - 0.5) s += '⯨';
+      else s += '☆';
     }
-    if (findVendorState.error) {
-      count.textContent = '0';
-      empty.textContent = findVendorState.error;
-      empty.classList.remove('hidden');
-      return;
-    }
-    var results = findVendorState.results || [];
-    count.textContent = results.length;
-    if (results.length === 0) {
-      empty.textContent = 'No vendors found in this category yet.';
-      empty.classList.remove('hidden');
-      return;
-    }
-    empty.classList.add('hidden');
+    return s;
+  }
 
-    results.forEach(function (v) {
+  function renderVendorResults() {
+    var listEl = $('vendorResultsList');
+    var emptyEl = $('vendorResultsEmpty');
+    var countEl = $('vendorResultsCount');
+    var vendors = vendorResultsState.vendors || [];
+    listEl.innerHTML = '';
+    countEl.textContent = vendors.length;
+
+    if (vendors.length === 0) {
+      emptyEl.textContent = 'No vendors found in this category yet.';
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+    emptyEl.classList.add('hidden');
+
+    vendors.forEach(function (v) {
       var li = document.createElement('li');
       li.className = 'list-item';
 
@@ -1201,15 +1208,31 @@
 
       var meta = document.createElement('div');
       meta.className = 'vendor-meta';
+
       var name = document.createElement('span');
       name.className = 'vendor-name';
       name.textContent = v.name;
+      meta.appendChild(name);
+
       var cat = document.createElement('span');
       cat.className = 'vendor-cat';
+      var bookingCount = Number(v.bookingCount) || 0;
       cat.textContent = (VENDOR_CATEGORY_LABELS[v.category] || v.category || 'Vendor') +
-        ' · ' + (Number(v.bookingCount) || 0) + ' booking' + ((Number(v.bookingCount) === 1) ? '' : 's');
-      meta.appendChild(name);
+        ' · ' + bookingCount + ' booking' + (bookingCount === 1 ? '' : 's');
       meta.appendChild(cat);
+
+      // Average rating + count
+      var ratingLine = document.createElement('span');
+      ratingLine.className = 'vendor-cat';
+      var ratingCount = Number(v.ratingCount) || 0;
+      var ratingAvg = Number(v.ratingAvg) || 0;
+      if (ratingCount > 0) {
+        ratingLine.textContent = starsHtml(ratingAvg) + '  ' + ratingAvg.toFixed(1) +
+          ' (' + ratingCount + ' rating' + (ratingCount === 1 ? '' : 's') + ')';
+      } else {
+        ratingLine.textContent = '☆☆☆☆☆  No ratings yet';
+      }
+      meta.appendChild(ratingLine);
 
       if (v.city) {
         var city = document.createElement('span');
@@ -1223,6 +1246,28 @@
         phoneNum.textContent = v.phone;
         meta.appendChild(phoneNum);
       }
+
+      // Interactive rate row: 5 buttons
+      var rateRow = document.createElement('div');
+      rateRow.className = 'vendor-notes';
+      var rateLabel = document.createElement('span');
+      rateLabel.textContent = 'Rate: ';
+      rateRow.appendChild(rateLabel);
+      for (var s = 1; s <= 5; s++) {
+        (function (star) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'icon-btn';
+          btn.style.fontSize = '18px';
+          btn.textContent = '★';
+          btn.title = star + ' star' + (star === 1 ? '' : 's');
+          btn.addEventListener('click', function () {
+            submitRating(v.id, star, btn);
+          });
+          rateRow.appendChild(btn);
+        })(s);
+      }
+      meta.appendChild(rateRow);
 
       row.appendChild(meta);
 
@@ -1255,20 +1300,59 @@
         });
         currentEventRecord.updatedAt = new Date().toISOString();
         scheduleSave();
+        add.textContent = 'Added';
+        add.disabled = true;
         renderEventVendors();
-        renderFindVendors();
       });
       row.appendChild(add);
 
       li.appendChild(row);
-      list.appendChild(li);
+      listEl.appendChild(li);
+    });
+  }
+
+  function submitRating(vendorId, rating, btn) {
+    if (!getUserId()) return;
+    if (btn) { btn.disabled = true; }
+    fetch('/api/vendorRating', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': getUserId() },
+      body: JSON.stringify({ vendorId: vendorId, rating: rating })
+    }).then(function (res) {
+      return res.text().then(function (text) {
+        var data = null;
+        if (text) { try { data = JSON.parse(text); } catch (e) {} }
+        if (!res.ok) {
+          var msg = (data && data.error) || ('Request failed (' + res.status + ')');
+          throw new Error(msg);
+        }
+        // Update the in-memory vendor with the fresh average and re-render.
+        if (data && data.vendor) {
+          for (var i = 0; i < vendorResultsState.vendors.length; i++) {
+            if (vendorResultsState.vendors[i].id === vendorId) {
+              vendorResultsState.vendors[i].ratingAvg = data.vendor.ratingAvg;
+              vendorResultsState.vendors[i].ratingCount = data.vendor.ratingCount;
+              break;
+            }
+          }
+          renderVendorResults();
+        }
+      });
+    }).catch(function (err) {
+      if (btn) { btn.disabled = false; }
+      alert(err.message || 'Failed to submit rating');
     });
   }
 
   $('findVendorForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var category = $('fvCategory').value;
-    fetchVendors(category);
+    showVendorResults(category);
+  });
+
+  $('backToPlannerBtn').addEventListener('click', function () {
+    $('vendorResultsScreen').classList.add('hidden');
+    $('appShell').classList.remove('hidden');
   });
 
   // Expenses

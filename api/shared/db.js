@@ -215,6 +215,21 @@ async function ensureSchema(pool, log) {
       if (!vc['vendor_user_id']) statements.push('ALTER TABLE EventVendors ADD vendor_user_id NVARCHAR(50) NULL');
     }
 
+    if (!(await tableExists(pool, 'VendorRatings'))) {
+      statements.push(
+        'CREATE TABLE VendorRatings (' +
+        '  id NVARCHAR(50) NOT NULL PRIMARY KEY,' +
+        '  vendor_user_id NVARCHAR(50) NOT NULL,' +
+        '  rater_user_id NVARCHAR(50) NOT NULL,' +
+        '  rating INT NOT NULL,' +
+        '  created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),' +
+        '  CONSTRAINT UQ_VendorRatings_VendorRater UNIQUE (vendor_user_id, rater_user_id),' +
+        '  CONSTRAINT CK_VendorRatings_Range CHECK (rating BETWEEN 1 AND 5)' +
+        ')'
+      );
+      statements.push('CREATE INDEX IX_VendorRatings_Vendor ON VendorRatings(vendor_user_id)');
+    }
+
     if (!(await tableExists(pool, 'VendorBookings'))) {
       statements.push(
         'CREATE TABLE VendorBookings (' +

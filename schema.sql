@@ -162,6 +162,19 @@ CREATE TABLE EventVendors (
 CREATE INDEX IX_EventVendors_User ON EventVendors(user_id);
 CREATE INDEX IX_EventVendors_Event ON EventVendors(event_id);
 
+CREATE TABLE VendorRatings (
+    id              NVARCHAR(50)  NOT NULL PRIMARY KEY,
+    vendor_user_id  NVARCHAR(50)  NOT NULL,
+    rater_user_id   NVARCHAR(50)  NOT NULL,
+    rating          INT           NOT NULL,
+    created_at      DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_VendorRatings_Vendor FOREIGN KEY (vendor_user_id) REFERENCES Users(id),
+    CONSTRAINT FK_VendorRatings_Rater  FOREIGN KEY (rater_user_id) REFERENCES Users(id),
+    CONSTRAINT UQ_VendorRatings_VendorRater UNIQUE (vendor_user_id, rater_user_id),
+    CONSTRAINT CK_VendorRatings_Range CHECK (rating BETWEEN 1 AND 5)
+);
+CREATE INDEX IX_VendorRatings_Vendor ON VendorRatings(vendor_user_id);
+
 CREATE TABLE VendorBookings (
     id          NVARCHAR(50)  NOT NULL PRIMARY KEY,
     user_id     NVARCHAR(50)  NOT NULL,

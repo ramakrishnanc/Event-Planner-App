@@ -24,17 +24,21 @@ module.exports = async function (context, req) {
         .input('category', sql.NVarChar(50), category || null)
         .query(
           "SELECT u.id, u.name, u.vendor_category, u.vendor_phone, u.vendor_city, " +
-          "  ISNULL(bc.bookings, 0) AS bookings " +
+          "  ISNULL(bc.bookings, 0) AS bookings, " +
+          "  ISNULL(rc.rating_count, 0) AS rating_count, " +
+          "  ISNULL(rc.rating_avg, 0)   AS rating_avg " +
           "FROM Users u " +
           "LEFT JOIN (SELECT user_id, COUNT(*) AS bookings FROM VendorBookings GROUP BY user_id) bc " +
           "  ON bc.user_id = u.id " +
+          "LEFT JOIN (SELECT vendor_user_id, COUNT(*) AS rating_count, AVG(CAST(rating AS DECIMAL(5,2))) AS rating_avg FROM VendorRatings GROUP BY vendor_user_id) rc " +
+          "  ON rc.vendor_user_id = u.id " +
           "WHERE u.role = 'vendor' " +
           "  AND (@category IS NULL OR u.vendor_category = @category) " +
-          "ORDER BY bookings DESC, u.name ASC"
+          "ORDER BY rating_avg DESC, bookings DESC, u.name ASC"
         );
       rows = withCounts.recordset;
     } catch (e) {
-      context.log('vendors: booking-count query failed (' + e.message + '); falling back without counts');
+      context.log('vendors: enriched query failed (' + e.message + '); falling back to basic listing');
       var basic = await pool.request()
         .input('category', sql.NVarChar(50), category || null)
         .query(
@@ -44,7 +48,10 @@ module.exports = async function (context, req) {
           "  AND (@category IS NULL OR u.vendor_category = @category) " +
           "ORDER BY u.name ASC"
         );
-      rows = basic.recordset.map(function (r) { r.bookings = 0; return r; });
+      rows = basic.recordset.map(function (r) {
+        r.bookings = 0; r.rating_count = 0; r.rating_avg = 0;
+        return r;
+      });
     }
 
     var vendors = rows.map(function (r) {
@@ -54,7 +61,9 @@ module.exports = async function (context, req) {
         category: r.vendor_category || '',
         phone: r.vendor_phone || '',
         city: r.vendor_city || '',
-        bookingCount: Number(r.bookings) || 0
+        bookingCount: Number(r.bookings) || 0,
+        ratingCount: Number(r.rating_count) || 0,
+        ratingAvg: Number(r.rating_avg) || 0
       };
     });
 

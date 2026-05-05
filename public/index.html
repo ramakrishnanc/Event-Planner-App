@@ -342,20 +342,7 @@
         </div>
         <form id="planVendorForm" class="stacked-form">
           <input type="text" id="pvName" placeholder="Vendor / business name" required />
-          <div class="row-2">
-            <select id="pvCategory">
-              <option value="caterer">Caterer</option>
-              <option value="photographer">Photographer</option>
-              <option value="priest">Priest</option>
-              <option value="decorator">Decorator</option>
-              <option value="makeup">Makeup Artist</option>
-              <option value="venue">Venue</option>
-              <option value="tenthouse">Tent House</option>
-              <option value="entertainment">Entertainment</option>
-              <option value="other">Other</option>
-            </select>
-            <input type="tel" id="pvPhone" placeholder="Phone" inputmode="tel" autocomplete="tel" />
-          </div>
+          <input type="tel" id="pvPhone" placeholder="Phone" inputmode="tel" autocomplete="tel" />
           <input type="text" id="pvNotes" placeholder="Notes (optional)" />
           <div class="form-actions">
             <button type="submit" class="btn-primary btn-sm">Add vendor</button>
@@ -363,14 +350,8 @@
         </form>
         <ul class="list vendor-list" id="planVendorList"></ul>
         <p class="empty hidden" id="planVendorEmpty">No vendors added yet.</p>
-      </section>
 
-      <section class="card" id="findVendorsSection">
-        <div class="card-head">
-          <h2>Find Vendors</h2>
-          <span class="chip chip-total"><span id="findVendorCount">0</span></span>
-        </div>
-        <p class="auth-hint">Browse vendors registered with Evento and add them to this event.</p>
+        <p class="auth-hint" style="margin-top:18px">Or browse vendors registered with Evento:</p>
         <form id="findVendorForm" class="stacked-form">
           <select id="fvCategory">
             <option value="caterer">Caterer</option>
@@ -384,11 +365,9 @@
             <option value="other">Other</option>
           </select>
           <div class="form-actions">
-            <button type="submit" class="btn-primary btn-sm">Search</button>
+            <button type="submit" class="btn-primary btn-sm">Browse vendors</button>
           </div>
         </form>
-        <ul class="list vendor-list" id="findVendorList"></ul>
-        <p class="empty hidden" id="findVendorEmpty">No vendors found in this category yet.</p>
       </section>
 
       <section class="card" id="expensesSection">
@@ -415,6 +394,32 @@
       </section>
     </main>
 
+    <footer class="foot">
+      <span>Evento &mdash; Simplify planning, amplify joy.</span>
+    </footer>
+  </div>
+
+  <!-- VENDOR RESULTS (full-page list shown after Browse vendors) -->
+  <div id="vendorResultsScreen" class="hidden">
+    <header class="page-header">
+      <div class="page-header-inner">
+        <button id="backToPlannerBtn" class="btn-ghost btn-sm" type="button">&larr; Back to planner</button>
+        <span class="brand-logo brand-logo-mini">Evento</span>
+        <div class="header-actions">
+          <span id="vendorResultsGreeting" class="user-greeting"></span>
+        </div>
+      </div>
+    </header>
+    <main class="container">
+      <section class="card">
+        <div class="card-head">
+          <h2 id="vendorResultsTitle">Vendors</h2>
+          <span class="chip chip-total"><span id="vendorResultsCount">0</span></span>
+        </div>
+        <ul class="list vendor-list" id="vendorResultsList"></ul>
+        <p class="empty hidden" id="vendorResultsEmpty">No vendors found in this category yet.</p>
+      </section>
+    </main>
     <footer class="foot">
       <span>Evento &mdash; Simplify planning, amplify joy.</span>
     </footer>
