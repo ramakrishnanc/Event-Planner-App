@@ -1,6 +1,7 @@
 const {
   getPool, ensureSchema, migrateUserIfNeeded,
-  insertEvent, insertBooking, sql
+  insertEvent, insertBooking,
+  tableForType, EVENT_TYPE_IDS, sql
 } = require('../shared/db');
 
 function readHeader(req, name) {
@@ -12,13 +13,22 @@ function readHeader(req, name) {
   return h[name.toLowerCase()] || h[name] || '';
 }
 
+function buildEventsUnionSql() {
+  var parts = EVENT_TYPE_IDS.map(function (typeId) {
+    var dst = tableForType(typeId);
+    return (
+      "SELECT '" + typeId + "' AS type_id, id, name, m_date, m_time, m_nakshatra, " +
+      "m_venue, m_priest, m_honoree, m_theme, m_notes, created_at, updated_at " +
+      'FROM ' + dst + ' WHERE user_id = @userId'
+    );
+  });
+  return parts.join(' UNION ALL ');
+}
+
 async function loadUserStore(pool, userId) {
   var eventsRes = await pool.request()
     .input('userId', sql.NVarChar(50), userId)
-    .query(
-      'SELECT id, type_id, name, m_date, m_time, m_nakshatra, m_venue, m_priest, m_honoree, m_theme, m_notes, created_at, updated_at ' +
-      'FROM Events WHERE user_id = @userId'
-    );
+    .query(buildEventsUnionSql());
 
   var events = eventsRes.recordset.map(function (r) {
     return {
@@ -51,9 +61,7 @@ async function loadUserStore(pool, userId) {
   if (events.length > 0) {
     childQueries.push(
       pool.request().input('userId', sql.NVarChar(50), userId).query(
-        'SELECT g.id, g.event_id, g.name, g.[count], g.invited ' +
-        'FROM EventGuests g INNER JOIN Events e ON e.id = g.event_id ' +
-        'WHERE e.user_id = @userId'
+        'SELECT id, event_id, name, [count], invited FROM EventGuests WHERE user_id = @userId'
       ).then(function (res) {
         res.recordset.forEach(function (g) {
           var ev = byId[g.event_id]; if (!ev) return;
@@ -61,9 +69,7 @@ async function loadUserStore(pool, userId) {
         });
       }),
       pool.request().input('userId', sql.NVarChar(50), userId).query(
-        'SELECT t.id, t.event_id, t.title, t.due, t.done ' +
-        'FROM EventTasks t INNER JOIN Events e ON e.id = t.event_id ' +
-        'WHERE e.user_id = @userId'
+        'SELECT id, event_id, title, due, done FROM EventTasks WHERE user_id = @userId'
       ).then(function (res) {
         res.recordset.forEach(function (t) {
           var ev = byId[t.event_id]; if (!ev) return;
@@ -71,33 +77,25 @@ async function loadUserStore(pool, userId) {
         });
       }),
       pool.request().input('userId', sql.NVarChar(50), userId).query(
-        'SELECT x.id, x.event_id, x.description, x.amount, x.category ' +
-        'FROM EventExpenses x INNER JOIN Events e ON e.id = x.event_id ' +
-        'WHERE e.user_id = @userId'
+        'SELECT id, event_id, description, amount, category FROM EventExpenses WHERE user_id = @userId'
       ).then(function (res) {
         res.recordset.forEach(function (x) {
           var ev = byId[x.event_id]; if (!ev) return;
           ev.expenses.push({
-            id: x.id,
-            description: x.description,
-            amount: Number(x.amount) || 0,
-            category: x.category || ''
+            id: x.id, description: x.description,
+            amount: Number(x.amount) || 0, category: x.category || ''
           });
         });
       }),
       pool.request().input('userId', sql.NVarChar(50), userId).query(
-        'SELECT v.id, v.event_id, v.name, v.category, v.phone, v.notes ' +
-        'FROM EventVendors v INNER JOIN Events e ON e.id = v.event_id ' +
-        'WHERE e.user_id = @userId'
+        'SELECT id, event_id, name, category, phone, notes, vendor_user_id FROM EventVendors WHERE user_id = @userId'
       ).then(function (res) {
         res.recordset.forEach(function (v) {
           var ev = byId[v.event_id]; if (!ev) return;
           ev.vendors.push({
-            id: v.id,
-            name: v.name,
-            category: v.category || '',
-            phone: v.phone || '',
-            notes: v.notes || ''
+            id: v.id, name: v.name,
+            category: v.category || '', phone: v.phone || '',
+            notes: v.notes || '', vendorUserId: v.vendor_user_id || ''
           });
         });
       })
@@ -113,11 +111,8 @@ async function loadUserStore(pool, userId) {
   var bookingsRes = await bookingsPromise;
   var bookings = bookingsRes.recordset.map(function (b) {
     return {
-      id: b.id,
-      client: b.client,
-      type: b.type || '',
-      date: b.date || '',
-      venue: b.venue || ''
+      id: b.id, client: b.client, type: b.type || '',
+      date: b.date || '', venue: b.venue || ''
     };
   });
 
@@ -131,26 +126,35 @@ async function saveUserStore(pool, userId, store) {
   var tx = new sql.Transaction(pool);
   await tx.begin();
   try {
-    // Wipe and rewrite. Simpler than diffing, and cascade deletes child rows.
-    await new sql.Request(tx)
-      .input('userId', sql.NVarChar(50), userId)
-      .query('DELETE FROM Events WHERE user_id = @userId');
+    // Wipe this user's rows everywhere, then re-insert.
+    for (var i = 0; i < EVENT_TYPE_IDS.length; i++) {
+      var dst = tableForType(EVENT_TYPE_IDS[i]);
+      await new sql.Request(tx)
+        .input('userId', sql.NVarChar(50), userId)
+        .query('DELETE FROM ' + dst + ' WHERE user_id = @userId');
+    }
+    var childTables = ['EventGuests', 'EventTasks', 'EventExpenses', 'EventVendors'];
+    for (var c = 0; c < childTables.length; c++) {
+      await new sql.Request(tx)
+        .input('userId', sql.NVarChar(50), userId)
+        .query('DELETE FROM ' + childTables[c] + ' WHERE user_id = @userId');
+    }
     await new sql.Request(tx)
       .input('userId', sql.NVarChar(50), userId)
       .query('DELETE FROM VendorBookings WHERE user_id = @userId');
 
-    for (var i = 0; i < events.length; i++) {
-      var ev = events[i];
+    for (var e = 0; e < events.length; e++) {
+      var ev = events[e];
       if (!ev || !ev.id) continue;
       await insertEvent(tx, userId, ev);
     }
-    for (var j = 0; j < bookings.length; j++) {
-      var b = bookings[j];
-      if (!b || !b.id) continue;
-      await insertBooking(tx, userId, b);
+    for (var b = 0; b < bookings.length; b++) {
+      var bk = bookings[b];
+      if (!bk || !bk.id) continue;
+      await insertBooking(tx, userId, bk);
     }
 
-    // Mirror the JSON to PlannerData so it's still readable as a backup.
+    // Mirror to PlannerData backup.
     var payload = JSON.stringify({ events: events, bookings: bookings });
     await new sql.Request(tx)
       .input('userId', sql.NVarChar(50), userId)

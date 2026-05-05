@@ -68,7 +68,7 @@
     { id: 'gruhapravesham', label: 'House Warming', icon: '🏠',
       title: 'Gruhapravesham Planner', tagline: 'Plan the housewarming with calm and clarity',
       themeClass: 'theme-marriage', sectionTitle: 'Muhurtham Details', countdownPlaceholder: 'Set the muhurtham below',
-      fields: ['date', 'time', 'nakshatra', 'venue', 'notes'],
+      fields: ['date', 'time', 'venue', 'notes'],
       categories: ['Pooja', 'Food & Catering', 'Decoration', 'Priest Dakshina', 'Photographer', 'Makeup', 'Return Gifts', 'Gifts', 'Travel', 'Other'] },
     { id: 'birthday', label: 'Birthday', icon: '🎂',
       title: 'Birthday Planner', tagline: 'Plan a joyful celebration',
@@ -828,6 +828,8 @@
     activeEventId = id;
     currentEvent = findType(ev.typeId);
 
+    findVendorState = { category: '', loading: false, results: [], error: '' };
+
     $('authScreen').classList.add('hidden');
     $('homeScreen').classList.add('hidden');
     $('vendorHome').classList.add('hidden');
@@ -844,6 +846,7 @@
     renderGuests();
     renderTasks();
     renderEventVendors();
+    renderFindVendors();
     renderExpenses();
   }
 
@@ -1128,6 +1131,144 @@
     scheduleSave();
     $('pvName').value = ''; $('pvPhone').value = ''; $('pvNotes').value = '';
     renderEventVendors();
+  });
+
+  // Find Vendors (browse registered vendors by category)
+  var findVendorState = { category: '', loading: false, results: [], error: '' };
+
+  function fetchVendors(category) {
+    findVendorState.loading = true;
+    findVendorState.error = '';
+    findVendorState.category = category;
+    renderFindVendors();
+    var url = '/api/vendors' + (category ? '?category=' + encodeURIComponent(category) : '');
+    return fetch(url, {
+      method: 'GET',
+      headers: { 'x-user-id': getUserId() }
+    }).then(function (res) {
+      return res.text().then(function (text) {
+        var data = null;
+        if (text) { try { data = JSON.parse(text); } catch (e) {} }
+        if (!res.ok) {
+          var msg = (data && data.error) || ('Request failed (' + res.status + ')');
+          throw new Error(msg);
+        }
+        findVendorState.loading = false;
+        findVendorState.results = (data && data.vendors) || [];
+        renderFindVendors();
+      });
+    }).catch(function (err) {
+      findVendorState.loading = false;
+      findVendorState.results = [];
+      findVendorState.error = err.message || 'Failed to load vendors';
+      renderFindVendors();
+    });
+  }
+
+  function renderFindVendors() {
+    var list = $('findVendorList');
+    var empty = $('findVendorEmpty');
+    var count = $('findVendorCount');
+    if (!list) return;
+    list.innerHTML = '';
+    if (findVendorState.loading) {
+      count.textContent = '…';
+      empty.textContent = 'Loading vendors…';
+      empty.classList.remove('hidden');
+      return;
+    }
+    if (findVendorState.error) {
+      count.textContent = '0';
+      empty.textContent = findVendorState.error;
+      empty.classList.remove('hidden');
+      return;
+    }
+    var results = findVendorState.results || [];
+    count.textContent = results.length;
+    if (results.length === 0) {
+      empty.textContent = 'No vendors found in this category yet.';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    results.forEach(function (v) {
+      var li = document.createElement('li');
+      li.className = 'list-item';
+
+      var row = document.createElement('div');
+      row.className = 'vendor-row';
+
+      var meta = document.createElement('div');
+      meta.className = 'vendor-meta';
+      var name = document.createElement('span');
+      name.className = 'vendor-name';
+      name.textContent = v.name;
+      var cat = document.createElement('span');
+      cat.className = 'vendor-cat';
+      cat.textContent = (VENDOR_CATEGORY_LABELS[v.category] || v.category || 'Vendor') +
+        ' · ' + (Number(v.bookingCount) || 0) + ' booking' + ((Number(v.bookingCount) === 1) ? '' : 's');
+      meta.appendChild(name);
+      meta.appendChild(cat);
+
+      if (v.city) {
+        var city = document.createElement('span');
+        city.className = 'vendor-notes';
+        city.textContent = v.city;
+        meta.appendChild(city);
+      }
+      if (v.phone) {
+        var phoneNum = document.createElement('span');
+        phoneNum.className = 'vendor-notes';
+        phoneNum.textContent = v.phone;
+        meta.appendChild(phoneNum);
+      }
+
+      row.appendChild(meta);
+
+      if (v.phone) {
+        var call = document.createElement('a');
+        call.className = 'call-btn';
+        call.href = 'tel:' + v.phone.replace(/[^+0-9]/g, '');
+        call.textContent = 'Call';
+        row.appendChild(call);
+      }
+
+      var alreadyAdded = (currentEventRecord && currentEventRecord.vendors || [])
+        .some(function (x) { return x.vendorUserId === v.id; });
+
+      var add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'btn-primary btn-sm';
+      add.textContent = alreadyAdded ? 'Added' : 'Add to event';
+      add.disabled = alreadyAdded;
+      add.addEventListener('click', function () {
+        if (!currentEventRecord) return;
+        if (!currentEventRecord.vendors) currentEventRecord.vendors = [];
+        currentEventRecord.vendors.push({
+          id: uid(),
+          vendorUserId: v.id,
+          name: v.name,
+          category: v.category || '',
+          phone: v.phone || '',
+          notes: v.city ? ('From Evento · ' + v.city) : 'From Evento'
+        });
+        currentEventRecord.updatedAt = new Date().toISOString();
+        scheduleSave();
+        renderEventVendors();
+        renderFindVendors();
+      });
+      row.appendChild(add);
+
+      li.appendChild(row);
+      list.appendChild(li);
+    });
+  }
+
+  $('findVendorForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var category = $('fvCategory').value;
+    fetchVendors(category);
   });
 
   // Expenses
