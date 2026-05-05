@@ -7,15 +7,16 @@ const config = {
   database: process.env.SQL_DATABASE,
   options: {
     encrypt: true,
-    trustServerCertificate: false,
-    connectTimeout: 30000,
-    requestTimeout: 30000
+    trustServerCertificate: false
   },
-  pool: { max: 10, min: 0, idleTimeoutMillis: 30000 }
+  connectionTimeout: 15000,
+  requestTimeout: 15000,
+  pool: { max: 10, min: 1, idleTimeoutMillis: 60000 }
 };
 
 let poolPromise;
 let schemaReadyPromise;
+let usersSchemaReadyPromise;
 
 function getPool() {
   if (!poolPromise) {
@@ -43,6 +44,35 @@ async function getColumns(pool, name) {
   return out;
 }
 
+// Light-weight schema check used by hot auth endpoints (login/register/forgotPin).
+// Only inspects the Users table — does NOT touch the new event tables, so the
+// auth path stays fast even on a cold function instance.
+async function ensureUsersSchema(pool, log) {
+  if (usersSchemaReadyPromise) return usersSchemaReadyPromise;
+  usersSchemaReadyPromise = (async function () {
+    var userCols = await getColumns(pool, 'Users');
+    if (Object.keys(userCols).length === 0) return; // fresh DB; full ensureSchema (run from /api/data) will create it
+    var statements = [];
+    if (!userCols['role']) statements.push("ALTER TABLE Users ADD role NVARCHAR(20) NOT NULL DEFAULT 'user'");
+    if (!userCols['vendor_category']) statements.push('ALTER TABLE Users ADD vendor_category NVARCHAR(50) NULL');
+    if (!userCols['vendor_phone']) statements.push('ALTER TABLE Users ADD vendor_phone NVARCHAR(50) NULL');
+    if (!userCols['vendor_city']) statements.push('ALTER TABLE Users ADD vendor_city NVARCHAR(100) NULL');
+    if (!userCols['pin']) statements.push('ALTER TABLE Users ADD pin NVARCHAR(10) NULL');
+    for (var i = 0; i < statements.length; i++) {
+      try {
+        if (log) log('Users migration: ' + statements[i]);
+        await pool.request().query(statements[i]);
+      } catch (e) {
+        if (log) log('Users migration failed (continuing): ' + statements[i] + ' :: ' + e.message);
+      }
+    }
+  })().catch(function (e) {
+    usersSchemaReadyPromise = undefined;
+    throw e;
+  });
+  return usersSchemaReadyPromise;
+}
+
 async function ensureSchema(pool, log) {
   if (schemaReadyPromise) return schemaReadyPromise;
   schemaReadyPromise = (async function () {
@@ -57,6 +87,9 @@ async function ensureSchema(pool, log) {
       if (!userCols['vendor_city']) statements.push('ALTER TABLE Users ADD vendor_city NVARCHAR(100) NULL');
       if (!userCols['pin']) statements.push('ALTER TABLE Users ADD pin NVARCHAR(10) NULL');
     }
+
+    // Mark Users-side as ready too, so /api/data doesn't redo Users checks.
+    if (!usersSchemaReadyPromise) usersSchemaReadyPromise = Promise.resolve();
 
     // ── Relational event tables ─────────────────────────────────────
     if (!(await tableExists(pool, 'Events'))) {
@@ -312,6 +345,7 @@ async function insertBooking(reqOrTx, userId, b) {
 module.exports = {
   getPool,
   ensureSchema,
+  ensureUsersSchema,
   migrateUserIfNeeded,
   insertEvent,
   insertGuest,

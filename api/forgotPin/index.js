@@ -1,4 +1,4 @@
-const { getPool, ensureSchema, sql } = require('../shared/db');
+const { getPool, ensureUsersSchema, sql } = require('../shared/db');
 
 async function sendPinEmail(toEmail, name, pin, log) {
   var host = process.env.SMTP_HOST;
@@ -74,7 +74,7 @@ module.exports = async function (context, req) {
 
   try {
     var pool = await getPool();
-    await ensureSchema(pool, context.log);
+    await ensureUsersSchema(pool, context.log);
 
     var result = await pool.request()
       .input('email', sql.NVarChar(320), email)

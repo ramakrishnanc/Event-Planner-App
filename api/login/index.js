@@ -1,4 +1,4 @@
-const { getPool, ensureSchema, sql } = require('../shared/db');
+const { getPool, ensureUsersSchema, sql } = require('../shared/db');
 
 module.exports = async function (context, req) {
   var body = req.body || {};
@@ -12,7 +12,7 @@ module.exports = async function (context, req) {
 
   try {
     var pool = await getPool();
-    await ensureSchema(pool, context.log);
+    await ensureUsersSchema(pool, context.log);
 
     var result = await pool.request()
       .input('email', sql.NVarChar(320), email)

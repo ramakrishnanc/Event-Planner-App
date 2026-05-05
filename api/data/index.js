@@ -47,70 +47,70 @@ async function loadUserStore(pool, userId) {
   var byId = {};
   events.forEach(function (e) { byId[e.id] = e; });
 
+  var childQueries = [];
   if (events.length > 0) {
-    var guestsRes = await pool.request()
-      .input('userId', sql.NVarChar(50), userId)
-      .query(
+    childQueries.push(
+      pool.request().input('userId', sql.NVarChar(50), userId).query(
         'SELECT g.id, g.event_id, g.name, g.[count], g.invited ' +
         'FROM EventGuests g INNER JOIN Events e ON e.id = g.event_id ' +
         'WHERE e.user_id = @userId'
-      );
-    guestsRes.recordset.forEach(function (g) {
-      var ev = byId[g.event_id]; if (!ev) return;
-      ev.guests.push({ id: g.id, name: g.name, count: g.count, invited: !!g.invited });
-    });
-
-    var tasksRes = await pool.request()
-      .input('userId', sql.NVarChar(50), userId)
-      .query(
+      ).then(function (res) {
+        res.recordset.forEach(function (g) {
+          var ev = byId[g.event_id]; if (!ev) return;
+          ev.guests.push({ id: g.id, name: g.name, count: g.count, invited: !!g.invited });
+        });
+      }),
+      pool.request().input('userId', sql.NVarChar(50), userId).query(
         'SELECT t.id, t.event_id, t.title, t.due, t.done ' +
         'FROM EventTasks t INNER JOIN Events e ON e.id = t.event_id ' +
         'WHERE e.user_id = @userId'
-      );
-    tasksRes.recordset.forEach(function (t) {
-      var ev = byId[t.event_id]; if (!ev) return;
-      ev.tasks.push({ id: t.id, title: t.title, due: t.due || '', done: !!t.done });
-    });
-
-    var expRes = await pool.request()
-      .input('userId', sql.NVarChar(50), userId)
-      .query(
+      ).then(function (res) {
+        res.recordset.forEach(function (t) {
+          var ev = byId[t.event_id]; if (!ev) return;
+          ev.tasks.push({ id: t.id, title: t.title, due: t.due || '', done: !!t.done });
+        });
+      }),
+      pool.request().input('userId', sql.NVarChar(50), userId).query(
         'SELECT x.id, x.event_id, x.description, x.amount, x.category ' +
         'FROM EventExpenses x INNER JOIN Events e ON e.id = x.event_id ' +
         'WHERE e.user_id = @userId'
-      );
-    expRes.recordset.forEach(function (x) {
-      var ev = byId[x.event_id]; if (!ev) return;
-      ev.expenses.push({
-        id: x.id,
-        description: x.description,
-        amount: Number(x.amount) || 0,
-        category: x.category || ''
-      });
-    });
-
-    var vendorsRes = await pool.request()
-      .input('userId', sql.NVarChar(50), userId)
-      .query(
+      ).then(function (res) {
+        res.recordset.forEach(function (x) {
+          var ev = byId[x.event_id]; if (!ev) return;
+          ev.expenses.push({
+            id: x.id,
+            description: x.description,
+            amount: Number(x.amount) || 0,
+            category: x.category || ''
+          });
+        });
+      }),
+      pool.request().input('userId', sql.NVarChar(50), userId).query(
         'SELECT v.id, v.event_id, v.name, v.category, v.phone, v.notes ' +
         'FROM EventVendors v INNER JOIN Events e ON e.id = v.event_id ' +
         'WHERE e.user_id = @userId'
-      );
-    vendorsRes.recordset.forEach(function (v) {
-      var ev = byId[v.event_id]; if (!ev) return;
-      ev.vendors.push({
-        id: v.id,
-        name: v.name,
-        category: v.category || '',
-        phone: v.phone || '',
-        notes: v.notes || ''
-      });
-    });
+      ).then(function (res) {
+        res.recordset.forEach(function (v) {
+          var ev = byId[v.event_id]; if (!ev) return;
+          ev.vendors.push({
+            id: v.id,
+            name: v.name,
+            category: v.category || '',
+            phone: v.phone || '',
+            notes: v.notes || ''
+          });
+        });
+      })
+    );
   }
 
-  var bookingsRes = await pool.request()
+  var bookingsPromise = pool.request()
     .input('userId', sql.NVarChar(50), userId)
     .query('SELECT id, client, type, [date], venue FROM VendorBookings WHERE user_id = @userId');
+  childQueries.push(bookingsPromise);
+
+  await Promise.all(childQueries);
+  var bookingsRes = await bookingsPromise;
   var bookings = bookingsRes.recordset.map(function (b) {
     return {
       id: b.id,
